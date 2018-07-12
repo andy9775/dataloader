@@ -72,8 +72,7 @@ func (d *dataloader) Load(ctx context.Context, key Key) Result {
 		therefore wait if necessary. Else if results are not empty, just return
 		the resulting value for the Key
 	*/
-
-	if d.results == nil || d.results.isEmpty() {
+	if d.results == nil || (*d.results).isEmpty() {
 		canExecBatchFunc := d.addKey(key)
 		if canExecBatchFunc {
 			go func() {
@@ -86,7 +85,18 @@ func (d *dataloader) Load(ctx context.Context, key Key) Result {
 		d.waitGroup.Wait()
 	}
 
-	return (*d.results)[key.String()]
+	/*
+		If the result is nil, it means that the caller missed the initial batch load,
+		therefore call the batch function to resolve the result.
+	*/
+	result := (*d.results).GetValue(key)
+	if result == MissingValue {
+		return nil
+	} else if result == nil {
+		return (*d.batchFunc(ctx, []Key{key})).GetValue(key)
+	}
+
+	return result
 }
 
 // ============================================== private =============================================
