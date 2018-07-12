@@ -64,7 +64,17 @@ implements a naive cache which will resolve the request.
 Internally, the DataLoader waits for the `Load(Key)` function to be called _n_ times,
 where _n_ is the initial DataLoader capacity. The `Load(Key)` function blocks each
 caller until the number of calls equal the loaders capacity and then each call
-to `Load(Key)` resolves to the requested element once the batch function returns.
+to `Load(Key)` resolves to the requested element once the batch function
+returns.
+
+## TODO
+
+- [ ] Set a max duration that a call to `Load(Key)` can block. Start from the
+      initial call to `Load(Key)`.
+- [ ] Determine optimal parallelism setting for
+      [graph-gophers/graphql-go](https://github.com/graph-gophers/graphql-go) in
+      order to ensure calls to `Load(Key)` don't block indefinitely, or that the
+      timeout value (above) isn't hit often.
 
 ## Future
 
