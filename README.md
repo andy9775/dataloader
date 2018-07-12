@@ -54,6 +54,13 @@ the database to return the `status` elements.
 
 **Do not use this library when making an unknown number of queries/requests.**
 
+Note that the capacity also acts as a _floor_. In instances where at least _n_
+calls are known, all _n+1_ calls are executed individually. For instance, if
+capacity is set to 10, the initial batch load is performed with 10 keys and
+subsequent calls to `Load(key)` executes the batch function with a single key.
+If the value for the key has been resolved in previous calls, the loader
+implements a naive cache which will resolve the request.
+
 Internally, the DataLoader waits for the `Load(Key)` function to be called _n_ times,
 where _n_ is the initial DataLoader capacity. The `Load(Key)` function blocks each
 caller until the number of calls equal the loaders capacity and then each call
