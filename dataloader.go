@@ -37,7 +37,7 @@ func NewDataLoader(capacity int, batchFunc BatchFunction) DataLoader {
 	return &dataloader{
 		waitGroup: &wg,
 		keys:      make(Keys, 0, capacity),
-		keysMutex: &sync.Mutex{},
+		keysMutex: &sync.RWMutex{},
 		batchFunc: batchFunc,
 	}
 }
@@ -49,7 +49,7 @@ type dataloader struct {
 	// the batch loading function is called with the keys to resolve.
 	keys      Keys
 	waitGroup *sync.WaitGroup
-	keysMutex *sync.Mutex
+	keysMutex *sync.RWMutex
 	results   *ResultMap
 	batchFunc BatchFunction
 }
