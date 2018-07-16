@@ -34,9 +34,9 @@ func NewKeys(capacity int) Keys {
 	}
 }
 
-// newKeys is an internal helper method for returning a new keys array which includes the
+// newKeys is a helper method for returning a new keys array which includes the
 // the provided keys
-func newKeys(key ...Key) Keys {
+func NewKeysWith(key ...Key) Keys {
 	return &keys{
 		k: key,
 		m: &sync.RWMutex{},
