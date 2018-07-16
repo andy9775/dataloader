@@ -8,7 +8,7 @@ import (
 	"github.com/andy9775/dataloader"
 )
 
-// Options contains the settings the user for the dataloader
+// Options contains the strategy configuration
 type Options struct {
 	Timeout time.Duration
 }
