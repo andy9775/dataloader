@@ -69,15 +69,15 @@ type standardStrategy struct {
 // Internally Load adds Key to the Keys array and blocks the caller until the batch loader
 // function resolves. Once resolved, Load returns the data to the caller for the specified
 // Key
-func (s *standardStrategy) Load(context context.Context, key dataloader.Key) dataloader.Result {
-	s.startWorker()
+func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Result {
+	s.startWorker(ctx)
 
 	s.keyChan <- key // pass key to the worker go routine (buffered channel)
 
 	<-s.closeChan // wait for the worker to complete and channel to close
 
 	if r := s.getResult(key); r == nil {
-		return (*s.batchFunc(nil, dataloader.NewKeysWith(key))).GetValue(key)
+		return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
 	} else if r == dataloader.MissingValue {
 		return nil
 	} else {
@@ -87,7 +87,7 @@ func (s *standardStrategy) Load(context context.Context, key dataloader.Key) dat
 
 // ============================================== private =============================================
 
-func (s *standardStrategy) startWorker() {
+func (s *standardStrategy) startWorker(ctx context.Context) {
 	s.workerMutex.Lock() // ensure only one worker is started
 	defer s.workerMutex.Unlock()
 
@@ -95,7 +95,7 @@ func (s *standardStrategy) startWorker() {
 		s.goroutineStatus = running
 		s.closeChan = make(chan struct{})
 
-		go func() {
+		go func(ctx context.Context) {
 			defer func() {
 				s.goroutineStatus = ran
 				s.keys.ClearAll()
@@ -107,14 +107,14 @@ func (s *standardStrategy) startWorker() {
 				select {
 				case key := <-s.keyChan:
 					if s.keys.Append(key) { // hit capacity
-						s.results = s.batchFunc(nil, s.keys)
+						s.results = s.batchFunc(ctx, s.keys)
 					}
 				case <-time.After(s.options.Timeout):
-					s.results = s.batchFunc(nil, s.keys)
+					s.results = s.batchFunc(ctx, s.keys)
 				}
 
 			}
-		}()
+		}(ctx)
 	}
 }
 
