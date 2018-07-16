@@ -69,7 +69,7 @@ returns.
 
 ## TODO
 
-- [ ] Set a max duration that a call to `Load(Key)` can block. Start from the
+- [x] Set a max duration that a call to `Load(Key)` can block. Start from the
       initial call to `Load(Key)`.
 - [ ] Determine optimal parallelism setting for
       [graph-gophers/graphql-go](https://github.com/graph-gophers/graphql-go) in
