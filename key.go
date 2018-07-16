@@ -34,7 +34,7 @@ func NewKeys(capacity int) Keys {
 	}
 }
 
-// newKeys is a helper method for returning a new keys array which includes the
+// NewKeysWith is a helper method for returning a new keys array which includes the
 // the provided keys
 func NewKeysWith(key ...Key) Keys {
 	return &keys{
