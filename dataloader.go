@@ -3,6 +3,7 @@ package dataloader
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 // DataLoader is the identifying interface for the dataloader.
@@ -17,7 +18,14 @@ type DataLoader interface {
 	Length() int
 
 	// Load returns the Result for the specified Key.
+	// Internally load adds the provided key to the keys array and blocks until a result
+	// is returned.
 	Load(context.Context, Key) Result
+}
+
+// Options contains the settings the user for the dataloader
+type Options struct {
+	Timeout time.Duration
 }
 
 // BatchFunction is called with n keys after the keys passed to the loader reach
@@ -25,41 +33,61 @@ type DataLoader interface {
 type BatchFunction func(context.Context, Keys) *ResultMap
 
 // NewDataLoader returns a new DataLoader with a count capacity of `capacity`.
-// The capacity value determines
-func NewDataLoader(capacity int, batchFunc BatchFunction) DataLoader {
-	wg := sync.WaitGroup{}
-	/*
-		Adding +1 to the wait group allows the batch function executer to decrement
-		the wait group counter once the batch function has resolved and returned
-	*/
-	wg.Add(capacity + 1)
+// The capacity value determines when the batch loader function will execute.
+func NewDataLoader(capacity int, batchFunc BatchFunction, opts Options) DataLoader {
+	formatOptions(&opts)
+
+	// TODO: requests block on adding keys to key channel if channel capacity is less than 5
+	keyChanCapacity := capacity
+	if capacity < 5 {
+		keyChanCapacity = 5
+	}
 
 	return &dataloader{
-		waitGroup: &wg,
-		keys:      make(Keys, 0, capacity),
-		keysMutex: &sync.RWMutex{},
+		keys:        NewKeys(capacity),
+		workerMutex: &sync.Mutex{},
+		keyChan:     make(chan Key, keyChanCapacity),
+
+		goroutineStatus: notRunning,
+
 		batchFunc: batchFunc,
+		options:   opts,
 	}
 }
 
 // ================================================================================================
 
+// go routine status values
+// Ensure that only one worker go routine is working to call the batch function
+const (
+	notRunning = int32(0) // go routine default start value
+	running    = int32(1) // go routine is waiting for keys array to fill up
+	ran        = int32(2) // go routine ran
+)
+
 type dataloader struct {
 	// Track the keys to pass to the batch function. Once len(keys) == cap(keys),
 	// the batch loading function is called with the keys to resolve.
 	keys      Keys
-	waitGroup *sync.WaitGroup
-	keysMutex *sync.RWMutex
 	results   *ResultMap
 	batchFunc BatchFunction
+
+	workerMutex *sync.Mutex
+
+	keyChan   chan Key
+	closeChan chan struct{}
+
+	goroutineStatus int32
+
+	options Options
 }
 
 func (d *dataloader) Capacity() int {
-	return cap(d.keys)
+	return d.keys.Capacity()
 }
 
 func (d *dataloader) Length() int {
-	return len(d.keys)
+	return d.keys.Length()
 }
 
 // Load returns the Result for the specified Key.
@@ -67,47 +95,64 @@ func (d *dataloader) Length() int {
 // function resolves. Once resolved, Load returns the data to the caller for the specified
 // Key
 func (d *dataloader) Load(ctx context.Context, key Key) Result {
-	/*
-		If no results have been set, it means the batch function hasn't run,
-		therefore wait if necessary. Else if results are not empty, just return
-		the resulting value for the Key
-	*/
-	if d.results == nil || (*d.results).isEmpty() {
-		canExecBatchFunc := d.addKey(key)
-		if canExecBatchFunc {
-			go func() {
-				defer d.waitGroup.Done()
+	d.startWorker()
 
-				d.results = d.batchFunc(ctx, d.keys)
-			}()
-		}
+	d.keyChan <- key // pass key to the worker go routine (buffered channel)
 
-		d.waitGroup.Wait()
-	}
+	<-d.closeChan // wait for the worker to complete and channel to close
 
-	/*
-		If the result is nil, it means that the caller missed the initial batch load,
-		therefore call the batch function to resolve the result.
-	*/
-	result := (*d.results).GetValue(key)
-	if result == MissingValue {
+	if r := d.getResult(key); r == nil {
+		return (*d.batchFunc(nil, newKeys(key))).GetValue(key)
+	} else if r == MissingValue {
 		return nil
-	} else if result == nil {
-		return (*d.batchFunc(ctx, []Key{key})).GetValue(key)
+	} else {
+		return r
 	}
-
-	return result
 }
 
 // ============================================== private =============================================
-// addKey handles adding a new key to the Keys tracker.
-// Returns true if the batch function can execute
-func (d *dataloader) addKey(key Key) bool {
-	d.keysMutex.Lock()
-	defer d.keysMutex.Unlock()
 
-	d.keys = append(d.keys, key)
-	d.waitGroup.Done()
+func (d *dataloader) startWorker() {
+	d.workerMutex.Lock() // ensure only one worker is started
+	defer d.workerMutex.Unlock()
 
-	return d.Length() == d.Capacity()
+	if d.goroutineStatus == notRunning {
+		d.goroutineStatus = running
+		d.closeChan = make(chan struct{})
+
+		go func() {
+			defer func() {
+				d.goroutineStatus = ran
+				d.keys.ClearAll()
+				close(d.closeChan)
+			}()
+
+			// loop while adding keys or timeout
+			for d.results == nil {
+				select {
+				case key := <-d.keyChan:
+					if d.keys.Append(key) { // hit capacity
+						d.results = d.batchFunc(nil, d.keys)
+					}
+				case <-time.After(d.options.Timeout):
+					d.results = d.batchFunc(nil, d.keys)
+				}
+
+			}
+		}()
+	}
+}
+
+// ============================================== helpers =============================================
+
+// formatOptions configures default values for the loader options
+func formatOptions(opts *Options) {
+	opts.Timeout |= 6 * time.Millisecond
+}
+
+func (d *dataloader) getResult(key Key) Result {
+	if d.results != nil {
+		return (*d.results).GetValue(key)
+	}
+	return nil
 }
