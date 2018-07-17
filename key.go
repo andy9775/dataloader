@@ -1,6 +1,8 @@
 package dataloader
 
-import "sync"
+import (
+	"sync"
+)
 
 // Key is an interface each element identifier must implement in order to be stored and cached
 // in the ResultsMap
@@ -78,8 +80,9 @@ func (k *keys) Keys() []Key {
 	k.m.RLock()
 	defer k.m.RUnlock()
 
-	var result []Key
+	result := make([]Key, k.Length())
 	copy(result, k.k)
+
 	return result
 }
 
