@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/andy9775/dataloader/strategies"
+
 	"github.com/andy9775/dataloader"
 )
 
@@ -36,10 +38,8 @@ func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int)
 		}
 
 		return &standardStrategy{
-			batchFunc:    batch,
-			capacity:     capacity,
-			loadCalls:    0,
-			counterMutex: &sync.Mutex{},
+			batchFunc: batch,
+			counter:   strategies.NewCounter(capacity),
 
 			workerMutex:     &sync.Mutex{},
 			keyChan:         make(chan dataloader.Key, keyChanCapacity),
@@ -52,9 +52,7 @@ func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int)
 }
 
 type standardStrategy struct {
-	capacity     int
-	loadCalls    int
-	counterMutex *sync.Mutex
+	counter strategies.Counter
 	// Track the keys to pass to the batch function. Once len(keys) == cap(keys),
 	// the batch loading function is called with the keys to resolve.
 	keys      dataloader.Keys
@@ -105,7 +103,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 			defer func() {
 				s.goroutineStatus = ran
 				s.keys.ClearAll()
-				s.resetCount()
+				s.counter.ResetCount()
 				close(s.closeChan)
 			}()
 
@@ -114,7 +112,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 				select {
 				case key := <-s.keyChan:
 					s.keys.Append(key)
-					if s.increment() { // hit capacity
+					if s.counter.Increment() { // hit capacity
 						s.results = s.batchFunc(ctx, s.keys)
 					}
 				case <-time.After(s.options.Timeout):
@@ -131,21 +129,6 @@ func (s *standardStrategy) getResult(key dataloader.Key) dataloader.Result {
 		return (*s.results).GetValue(key)
 	}
 	return nil
-}
-
-func (s *standardStrategy) increment() bool {
-	s.counterMutex.Lock()
-	defer s.counterMutex.Unlock()
-
-	s.loadCalls++
-	return s.loadCalls == s.capacity
-}
-
-func (s *standardStrategy) resetCount() {
-	s.counterMutex.Lock()
-	defer s.counterMutex.Unlock()
-
-	s.loadCalls = 0
 }
 
 // ============================================== helpers =============================================

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/andy9775/dataloader"
+	"github.com/andy9775/dataloader/strategies"
 )
 
 // Options contains the strategy configuration
@@ -47,10 +48,8 @@ func NewSozuStrategy(batch dataloader.BatchFunction, opts Options) func(int) dat
 		}
 
 		return &sozuStrategy{
-			batchFunc:    batch,
-			capacity:     capacity,
-			loadCalls:    0,
-			counterMutex: &sync.Mutex{},
+			batchFunc: batch,
+			counter:   strategies.NewCounter(capacity),
 
 			workerMutex:     &sync.Mutex{},
 			keyChan:         make(chan workerMessage, keyChanCapacity),
@@ -63,9 +62,7 @@ func NewSozuStrategy(batch dataloader.BatchFunction, opts Options) func(int) dat
 }
 
 type sozuStrategy struct {
-	capacity     int
-	loadCalls    int
-	counterMutex *sync.Mutex
+	counter strategies.Counter
 	// Track the keys to pass to the batch function. Once len(keys) == cap(keys),
 	// the batch loading function is called with the keys to resolve.
 	keys      dataloader.Keys
@@ -160,7 +157,7 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 			defer func() {
 				s.goroutineStatus = ran
 				s.keys.ClearAll()
-				s.resetCount()
+				s.counter.ResetCount()
 				close(s.closeChan)
 			}()
 
@@ -169,8 +166,8 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 				select {
 				case key := <-s.keyChan:
 					subscribers = append(subscribers, key.resultChan)
-					s.keys.Append(key)
-					if s.increment() { // hit capacity
+					s.keys.Append(key.Key)
+					if s.counter.Increment() { // hit capacity
 						r = s.batchFunc(ctx, s.keys)
 					}
 				case <-time.After(s.options.Timeout):
@@ -197,21 +194,6 @@ func (s *sozuStrategy) getResult(key dataloader.Key) dataloader.Result {
 		return (*s.results).GetValue(key)
 	}
 	return nil
-}
-
-func (s *sozuStrategy) increment() bool {
-	s.counterMutex.Lock()
-	defer s.counterMutex.Unlock()
-
-	s.loadCalls++
-	return s.loadCalls == s.capacity
-}
-
-func (s *sozuStrategy) resetCount() {
-	s.counterMutex.Lock()
-	defer s.counterMutex.Unlock()
-
-	s.loadCalls = 0
 }
 
 // ============================================== helpers =============================================
