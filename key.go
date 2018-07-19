@@ -15,7 +15,7 @@ type Key interface {
 
 // Keys wraps an array of keys and contains accessor methods
 type Keys interface {
-	Append(Key) bool
+	Append(...Key)
 	Capacity() int
 	Length() int
 	ClearAll()
@@ -47,13 +47,13 @@ func NewKeysWith(key ...Key) Keys {
 
 // ================================== public methods ==================================
 
-func (k *keys) Append(key Key) bool {
+func (k *keys) Append(keys ...Key) {
 	k.m.Lock()
 	defer k.m.Unlock()
 
-	k.k = append(k.k, key)
-
-	return len(k.k) == cap(k.k)
+	for _, key := range keys {
+		k.k = append(k.k, key)
+	}
 }
 
 func (k *keys) Capacity() int {

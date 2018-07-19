@@ -16,9 +16,9 @@ type Options struct {
 // go routine status values
 // Ensure that only one worker go routine is working to call the batch function
 const (
-	notRunning = int32(0) // go routine default start value
-	running    = int32(1) // go routine is waiting for keys array to fill up
-	ran        = int32(2) // go routine ran
+	notRunning = 0 // go routine default start value
+	running    = 1 // go routine is waiting for keys array to fill up
+	ran        = 2 // go routine ran
 )
 
 // NewStandardStrategy returns a new instance of the standard strategy.
@@ -36,7 +36,10 @@ func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int)
 		}
 
 		return &standardStrategy{
-			batchFunc: batch,
+			batchFunc:    batch,
+			capacity:     capacity,
+			loadCalls:    0,
+			counterMutex: &sync.Mutex{},
 
 			workerMutex:     &sync.Mutex{},
 			keyChan:         make(chan dataloader.Key, keyChanCapacity),
@@ -49,6 +52,9 @@ func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int)
 }
 
 type standardStrategy struct {
+	capacity     int
+	loadCalls    int
+	counterMutex *sync.Mutex
 	// Track the keys to pass to the batch function. Once len(keys) == cap(keys),
 	// the batch loading function is called with the keys to resolve.
 	keys      dataloader.Keys
@@ -60,7 +66,7 @@ type standardStrategy struct {
 	keyChan   chan dataloader.Key
 	closeChan chan struct{}
 
-	goroutineStatus int32
+	goroutineStatus int
 
 	options Options
 }
@@ -99,6 +105,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 			defer func() {
 				s.goroutineStatus = ran
 				s.keys.ClearAll()
+				s.resetCount()
 				close(s.closeChan)
 			}()
 
@@ -106,7 +113,8 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 			for s.results == nil {
 				select {
 				case key := <-s.keyChan:
-					if s.keys.Append(key) { // hit capacity
+					s.keys.Append(key)
+					if s.increment() { // hit capacity
 						s.results = s.batchFunc(ctx, s.keys)
 					}
 				case <-time.After(s.options.Timeout):
@@ -123,6 +131,21 @@ func (s *standardStrategy) getResult(key dataloader.Key) dataloader.Result {
 		return (*s.results).GetValue(key)
 	}
 	return nil
+}
+
+func (s *standardStrategy) increment() bool {
+	s.counterMutex.Lock()
+	defer s.counterMutex.Unlock()
+
+	s.loadCalls++
+	return s.loadCalls == s.capacity
+}
+
+func (s *standardStrategy) resetCount() {
+	s.counterMutex.Lock()
+	defer s.counterMutex.Unlock()
+
+	s.loadCalls = 0
 }
 
 // ============================================== helpers =============================================
