@@ -77,6 +77,7 @@ returns.
       timeout value (above) isn't hit often.
 - [ ] Caching approach/interface
 - [ ] Tests!!
+- [ ] LoadMany - ability to call load with multiple keys
 
 ## Future
 
