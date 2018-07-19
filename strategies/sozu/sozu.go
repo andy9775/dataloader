@@ -25,9 +25,9 @@ type Options struct {
 // go routine status values
 // Ensure that only one worker go routine is working to call the batch function
 const (
-	notRunning = int32(0) // go routine default start value
-	running    = int32(1) // go routine is waiting for keys array to fill up
-	ran        = int32(2) // go routine ran
+	notRunning = 0 // go routine default start value
+	running    = 1 // go routine is waiting for keys array to fill up
+	ran        = 2 // go routine ran
 )
 
 // NewSozuStrategy returns a new instance of the Sozu strategy.
@@ -71,7 +71,7 @@ type sozuStrategy struct {
 	keyChan   chan workerMessage
 	closeChan chan struct{}
 
-	goroutineStatus int32
+	goroutineStatus int
 
 	options Options
 }
