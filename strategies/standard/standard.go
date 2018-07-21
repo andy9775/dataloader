@@ -42,7 +42,7 @@ func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int)
 			counter:   strategies.NewCounter(capacity),
 
 			workerMutex:     &sync.Mutex{},
-			keyChan:         make(chan dataloader.Key, keyChanCapacity),
+			keyChan:         make(chan []dataloader.Key, keyChanCapacity),
 			goroutineStatus: notRunning,
 			options:         opts,
 
@@ -61,7 +61,7 @@ type standardStrategy struct {
 
 	workerMutex *sync.Mutex
 
-	keyChan   chan dataloader.Key
+	keyChan   chan []dataloader.Key
 	closeChan chan struct{}
 
 	goroutineStatus int
@@ -76,7 +76,7 @@ type standardStrategy struct {
 func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Result {
 	s.startWorker(ctx)
 
-	s.keyChan <- key // pass key to the worker go routine (buffered channel)
+	s.keyChan <- []dataloader.Key{key} // pass key to the worker go routine (buffered channel)
 
 	<-s.closeChan // wait for the worker to complete and channel to close
 
@@ -87,6 +87,41 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 	} else {
 		return r
 	}
+}
+
+func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ResultMap {
+	s.startWorker(ctx)
+
+	s.keyChan <- keyArr
+
+	<-s.closeChan
+
+	result := dataloader.NewResultMap(keyArr)
+	toLoad := dataloader.NewKeys(len(keyArr))
+	for _, k := range keyArr {
+		r := (*s.results).GetValue(k)
+		if r == nil {
+			toLoad.Append(k)
+		} else if r == dataloader.MissingValue {
+			result.Set(k.String(), nil)
+		} else {
+			result.Set(k.String(), r)
+		}
+	}
+
+	if !toLoad.IsEmpty() {
+		batchResult := (*s.batchFunc(ctx, toLoad))
+		for _, k := range toLoad.Keys() {
+			r := batchResult.GetValue(k)
+			if r == dataloader.MissingValue {
+				result.Set(k.String(), nil)
+			} else {
+				result.Set(k.String(), r)
+			}
+		}
+	}
+
+	return result
 }
 
 // ============================================== private =============================================
@@ -111,7 +146,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 			for s.results == nil {
 				select {
 				case key := <-s.keyChan:
-					s.keys.Append(key)
+					s.keys.Append(key...)
 					if s.counter.Increment() { // hit capacity
 						s.results = s.batchFunc(ctx, s.keys)
 					}

@@ -21,6 +21,7 @@ type Keys interface {
 	ClearAll()
 	Identifiers() []string
 	Keys() []Key
+	IsEmpty() bool
 }
 
 type keys struct {
@@ -96,4 +97,11 @@ func (k *keys) Identifiers() []string {
 	}
 
 	return result
+}
+
+func (k *keys) IsEmpty() bool {
+	k.m.RLock()
+	defer k.m.RUnlock()
+
+	return len(k.k) == 0
 }

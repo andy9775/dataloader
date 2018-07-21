@@ -11,4 +11,7 @@ type Strategy interface {
 	// Internally load adds the provided key to the keys array and blocks until a result
 	// is returned.
 	Load(context.Context, Key) Result
+
+	// LoadMany returns a result map containing all the values for the keys the caller asked for
+	LoadMany(context.Context, ...Key) ResultMap
 }

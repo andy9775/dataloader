@@ -142,6 +142,10 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 
 }
 
+func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ResultMap {
+	return nil
+}
+
 // ============================================== private =============================================
 func (s *sozuStrategy) startWorker(ctx context.Context) {
 	s.workerMutex.Lock() // ensure only one worker is started
