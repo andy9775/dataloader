@@ -71,9 +71,9 @@ returns.
       [graph-gophers/graphql-go](https://github.com/graph-gophers/graphql-go) in
       order to ensure calls to `Load(Key)` don't block indefinitely, or that the
       timeout value (above) isn't hit often.
-- [ ] Caching approach/interface
+- [x] Caching approach/interface
 - [ ] Tests!!
-- [ ] LoadMany - ability to call load with multiple keys
+- [x] LoadMany - ability to call load with multiple keys
 
 ## Future
 
