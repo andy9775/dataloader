@@ -80,7 +80,7 @@ type sozuStrategy struct {
 }
 
 type workerMessage struct {
-	dataloader.Key
+	k          []dataloader.Key
 	resultChan chan dataloader.ResultMap
 }
 
@@ -103,7 +103,7 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 	s.startWorker(ctx)
 
 	resultChan := make(chan dataloader.ResultMap)
-	message := workerMessage{key, resultChan}
+	message := workerMessage{k: []dataloader.Key{key}, resultChan: resultChan}
 	s.keyChan <- message // pass key to the worker go routine
 
 	/*
@@ -143,7 +143,30 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 }
 
 func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ResultMap {
-	return nil
+	s.startWorker(ctx)
+
+	resultChan := make(chan dataloader.ResultMap)
+	message := workerMessage{k: keyArr, resultChan: resultChan}
+	s.keyChan <- message
+
+	// See comments in Load method above
+	for {
+		select {
+		case <-s.closeChan:
+			s.startWorker(ctx)
+		case results := <-resultChan:
+			result := dataloader.NewResultMap(keyArr)
+			for _, k := range keyArr {
+				r := results.GetValue(k)
+				if r == dataloader.MissingValue {
+					result.Set(k.String(), nil)
+				} else {
+					result.Set(k.String(), r)
+				}
+			}
+			return result
+		}
+	}
 }
 
 // ============================================== private =============================================
@@ -170,7 +193,7 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 				select {
 				case key := <-s.keyChan:
 					subscribers = append(subscribers, key.resultChan)
-					s.keys.Append(key.Key)
+					s.keys.Append(key.k...)
 					if s.counter.Increment() { // hit capacity
 						r = s.batchFunc(ctx, s.keys)
 					}
