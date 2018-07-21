@@ -1,8 +1,8 @@
 # DataLoader
 
 DataLoader implements a counter which can be used against Field Resolver
-functions. It calls a **batch** function after the number of keys (identifiers)
-passed to it reaches the loaders capacity.
+functions. It calls a **batch** function after the number of calls to Load values
+reaches the loaders capacity.
 
 ## Terminology
 
@@ -15,7 +15,7 @@ The following terms are used throughout the documentation:
 
 Use the DataLoader when fetching a known number of elements, where each element has
 a field resolver associated with it that hits a database or has some other time
-consuming logic behind resolving the data. This is typically useful when making
+consuming operation to resolve the data. This is typically useful when making
 _index_ type queries where _n_ number of root elements is requested and each root
 element has an associated model to be fetched.
 
@@ -55,11 +55,7 @@ the database to return the `status` elements.
 **Do not use this library when making an unknown number of queries/requests.**
 
 Note that the capacity also acts as a _floor_. In instances where at least _n_
-calls are known, all _n+1_ calls are executed individually. For instance, if
-capacity is set to 10, the initial batch load is performed with 10 keys and
-subsequent calls to `Load(key)` executes the batch function with a single key.
-If the value for the key has been resolved in previous calls, the loader
-implements a naive cache which will resolve the request.
+calls are known, all _n+1_ calls are executed depending on the strategy used.
 
 Internally, the DataLoader waits for the `Load(Key)` function to be called _n_ times,
 where _n_ is the initial DataLoader capacity. The `Load(Key)` function blocks each
@@ -81,9 +77,6 @@ returns.
 
 ## Future
 
-- caching
-  - request level and app level caching.
-  - user provided caching scheme (Cacher interface)
 - nested resolvers
   - A DataLoader should be provided for a specific field and it should cache the
     results. If a complex query is made (e.g. users have statuses, users have
