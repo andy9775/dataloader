@@ -6,8 +6,6 @@ reaches the loaders capacity.
 
 ## Terminology
 
-<hr>
-
 The following terms are used throughout the documentation:
 
 - **Element** - Refers to the item to be resolved. This can be a record from a
@@ -66,8 +64,6 @@ to `Load()` resolves to the requested element once the batch function
 returns.
 
 ## API
-
-<hr>
 
 #### DataLoader
 
@@ -249,8 +245,6 @@ ResetCounter sets the counter back to 0 but keeps the original capacity.
 
 ## Strategies
 
-<hr>
-
 ### Standard
 
 The standard strategy initially calls the batch function when one of two
@@ -289,8 +283,6 @@ in a defined and equal group. For instance, the initial call can be to resolve
 
 ## TODO
 
-<hr>
-
 - [x] Set a max duration that a call to `Load(Key)` can block. Start from the
       initial call to `Load(Key)`.
 - [x] Caching approach/interface
@@ -299,8 +291,6 @@ in a defined and equal group. For instance, the initial call can be to resolve
 - [ ] Examples
 
 ## Future
-
-<hr>
 
 - nested resolvers
   - A DataLoader should be provided for a specific field and it should cache the
