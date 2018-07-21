@@ -34,7 +34,7 @@ func (c *counter) Increment() bool {
 	defer c.counterMutex.Unlock()
 
 	c.loadCalls++
-	return c.loadCalls == c.capacity
+	return c.loadCalls >= c.capacity
 }
 
 func (c *counter) ResetCount() {
