@@ -90,12 +90,6 @@ type workerMessage struct {
 // Subsequent calls to the Load function will continue to block until the keys array hits capacity,
 // or the timeout value is hit.
 func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Result {
-	if r := s.getResult(key); r == dataloader.MissingValue { // tried to load data for key and nothing was found.
-		return nil
-	} else if r != nil {
-		return r
-	}
-
 	/*
 	 if a result doesn't exist or is not missing, start a new worker (if none is running)
 	 and pass it the key to be resolved by the batch function.
@@ -154,16 +148,18 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 		select {
 		case <-s.closeChan:
 			s.startWorker(ctx)
-		case results := <-resultChan:
+		case r := <-resultChan:
 			result := dataloader.NewResultMap(keyArr)
+
 			for _, k := range keyArr {
-				r := results.GetValue(k)
-				if r == dataloader.MissingValue {
+				val := r.GetValue(k)
+				if val == dataloader.MissingValue {
 					result.Set(k.String(), nil)
 				} else {
-					result.Set(k.String(), r)
+					result.Set(k.String(), val)
 				}
 			}
+
 			return result
 		}
 	}
@@ -206,21 +202,8 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 				ch <- *r
 				close(ch)
 			}
-
-			if s.results != nil {
-				(*s.results).MergeWith(r)
-			} else {
-				s.results = r
-			}
 		}(ctx)
 	}
-}
-
-func (s *sozuStrategy) getResult(key dataloader.Key) dataloader.Result {
-	if s.results != nil {
-		return (*s.results).GetValue(key)
-	}
-	return nil
 }
 
 // ============================================== helpers =============================================

@@ -42,7 +42,7 @@ func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int)
 			counter:   strategies.NewCounter(capacity),
 
 			workerMutex:     &sync.Mutex{},
-			keyChan:         make(chan []dataloader.Key, keyChanCapacity),
+			keyChan:         make(chan workerMessage, keyChanCapacity),
 			goroutineStatus: notRunning,
 			options:         opts,
 
@@ -56,17 +56,21 @@ type standardStrategy struct {
 	// Track the keys to pass to the batch function. Once len(keys) == cap(keys),
 	// the batch loading function is called with the keys to resolve.
 	keys      dataloader.Keys
-	results   *dataloader.ResultMap
 	batchFunc dataloader.BatchFunction
 
 	workerMutex *sync.Mutex
 
-	keyChan   chan []dataloader.Key
+	keyChan   chan workerMessage
 	closeChan chan struct{}
 
 	goroutineStatus int
 
 	options Options
+}
+
+type workerMessage struct {
+	k          []dataloader.Key
+	resultChan chan dataloader.ResultMap
 }
 
 // Load returns the Result for the specified Key.
@@ -76,15 +80,18 @@ type standardStrategy struct {
 func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Result {
 	s.startWorker(ctx)
 
-	s.keyChan <- []dataloader.Key{key} // pass key to the worker go routine (buffered channel)
+	resultChan := make(chan dataloader.ResultMap)
+	message := workerMessage{k: []dataloader.Key{key}, resultChan: resultChan}
+	s.keyChan <- message // pass key to the worker go routine (buffered channel)
 
-	<-s.closeChan // wait for the worker to complete and channel to close
-
-	if r := s.getResult(key); r == nil {
+	select {
+	case <-s.closeChan:
 		return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
-	} else if r == dataloader.MissingValue {
-		return nil
-	} else {
+	case result := <-resultChan:
+		r := result.GetValue(key)
+		if r == dataloader.MissingValue {
+			return nil
+		}
 		return r
 	}
 }
@@ -92,36 +99,20 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ResultMap {
 	s.startWorker(ctx)
 
-	s.keyChan <- keyArr
+	resultChan := make(chan dataloader.ResultMap)
+	message := workerMessage{k: keyArr, resultChan: resultChan}
+	s.keyChan <- message
 
-	<-s.closeChan
-
-	result := dataloader.NewResultMap(keyArr)
-	toLoad := dataloader.NewKeys(len(keyArr))
-	for _, k := range keyArr {
-		r := (*s.results).GetValue(k)
-		if r == nil {
-			toLoad.Append(k)
-		} else if r == dataloader.MissingValue {
-			result.Set(k.String(), nil)
-		} else {
-			result.Set(k.String(), r)
-		}
+	var r dataloader.ResultMap
+	select {
+	case <-s.closeChan: // batch the keys if closed
+		r = *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
+		break
+	case r = <-resultChan:
+		break
 	}
 
-	if !toLoad.IsEmpty() {
-		batchResult := (*s.batchFunc(ctx, toLoad))
-		for _, k := range toLoad.Keys() {
-			r := batchResult.GetValue(k)
-			if r == dataloader.MissingValue {
-				result.Set(k.String(), nil)
-			} else {
-				result.Set(k.String(), r)
-			}
-		}
-	}
-
-	return result
+	return buildResultMap(keyArr, r)
 }
 
 // ============================================== private =============================================
@@ -135,6 +126,8 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 		s.closeChan = make(chan struct{})
 
 		go func(ctx context.Context) {
+			subscribers := make([]chan dataloader.ResultMap, 0, s.keys.Capacity())
+
 			defer func() {
 				s.goroutineStatus = ran
 				s.keys.ClearAll()
@@ -143,27 +136,26 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 			}()
 
 			// loop while adding keys or timeout
-			for s.results == nil {
+			var r *dataloader.ResultMap
+			for r == nil {
 				select {
 				case key := <-s.keyChan:
-					s.keys.Append(key...)
+					subscribers = append(subscribers, key.resultChan)
+					s.keys.Append(key.k...)
 					if s.counter.Increment() { // hit capacity
-						s.results = s.batchFunc(ctx, s.keys)
+						r = s.batchFunc(ctx, s.keys)
 					}
 				case <-time.After(s.options.Timeout):
-					s.results = s.batchFunc(ctx, s.keys)
+					r = s.batchFunc(ctx, s.keys)
 				}
+			}
 
+			for _, ch := range subscribers {
+				ch <- *r
+				close(ch)
 			}
 		}(ctx)
 	}
-}
-
-func (s *standardStrategy) getResult(key dataloader.Key) dataloader.Result {
-	if s.results != nil {
-		return (*s.results).GetValue(key)
-	}
-	return nil
 }
 
 // ============================================== helpers =============================================
@@ -171,4 +163,21 @@ func (s *standardStrategy) getResult(key dataloader.Key) dataloader.Result {
 // formatOptions configures default values for the loader options
 func formatOptions(opts *Options) {
 	opts.Timeout |= 6 * time.Millisecond
+}
+
+// buildResultMap filters through the provided result map and returns an ResultMap
+// for the provided keys
+func buildResultMap(keyArr []dataloader.Key, r dataloader.ResultMap) dataloader.ResultMap {
+	results := dataloader.NewResultMap(keyArr)
+
+	for _, k := range keyArr {
+		val := r.GetValue(k)
+		if val == dataloader.MissingValue {
+			results.Set(k.String(), nil)
+		} else {
+			results.Set(k.String(), val)
+		}
+	}
+
+	return results
 }
