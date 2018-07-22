@@ -3,9 +3,9 @@ Package sozu contains implentation details for the sozu strategy.
 
 The sozu strategy attempts to execute the batch function everytime the keys array
 hits capacity. Then subsequent calls to Load(), after the batch function has been
-called once, attempt to fetch from cache or start a new worker which will call the
-batch function once again after the keys array capacity has been hit. It's goal is
-to ensure that they batch function is called with the most number of keys possible
+called once, start a new worker which will call the batch function once again after
+the keys array capacity has been hit. It's goal is to ensure that they batch
+function is called with the most number of keys possible.
 */
 package sozu
 
