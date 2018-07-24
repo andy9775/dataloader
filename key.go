@@ -19,7 +19,7 @@ type Keys interface {
 	Capacity() int
 	Length() int
 	ClearAll()
-	// UniqueIdentifiers returns an array of unique identifier values
+	// UniqueIdentifiers filters out duplicate keys and returns the remaining key's identifiers
 	UniqueIdentifiers() []string
 	Identifiers() []string
 	// Keys returns a slice of the unique key values by calling the `String()`
