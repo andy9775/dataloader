@@ -19,8 +19,11 @@ type Keys interface {
 	Capacity() int
 	Length() int
 	ClearAll()
+	// UniqueIdentifiers returns an array of unique identifier values
 	UniqueIdentifiers() []string
 	Identifiers() []string
+	// Keys returns a slice of the unique key values by calling the `String()`
+	// functions on each element
 	Keys() []Key
 	IsEmpty() bool
 }
@@ -76,8 +79,6 @@ func (k *keys) ClearAll() {
 	k.k = make([]Key, 0, len(k.k))
 }
 
-// Keys returns a slice of the unique key values by calling the `String()`
-// functions on each element
 func (k *keys) Keys() []Key {
 	k.m.RLock()
 	defer k.m.RUnlock()
@@ -88,7 +89,6 @@ func (k *keys) Keys() []Key {
 	return result
 }
 
-// UniqueKeys returns an array of unique identifier values
 func (k *keys) UniqueIdentifiers() []string {
 	k.m.RLock()
 	defer k.m.RUnlock()
