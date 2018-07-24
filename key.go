@@ -19,6 +19,7 @@ type Keys interface {
 	Capacity() int
 	Length() int
 	ClearAll()
+	UniqueIdentifiers() []string
 	Identifiers() []string
 	Keys() []Key
 	IsEmpty() bool
@@ -83,6 +84,24 @@ func (k *keys) Keys() []Key {
 
 	result := make([]Key, k.Length())
 	copy(result, k.k)
+
+	return result
+}
+
+// UniqueKeys returns an array of unique identifier values
+func (k *keys) UniqueIdentifiers() []string {
+	k.m.RLock()
+	defer k.m.RUnlock()
+
+	result := make([]string, 0, k.Length())
+	temp := make(map[Key]bool, k.Length())
+
+	for _, val := range k.k {
+		if _, ok := temp[val]; !ok {
+			temp[val] = true
+			result = append(result, val.String())
+		}
+	}
 
 	return result
 }
