@@ -57,7 +57,9 @@ func (k *keys) Append(keys ...Key) {
 	defer k.m.Unlock()
 
 	for _, key := range keys {
-		k.k = append(k.k, key)
+		if key != nil { // don't track nil keys
+			k.k = append(k.k, key)
+		}
 	}
 }
 

@@ -48,6 +48,10 @@ func (r *resultMap) Set(identifier string, value Result) {
 // GetValue returns the value from the results for the provided key.
 // If no value exists, returns nil
 func (r *resultMap) GetValue(key Key) Result {
+	if key == nil {
+		return nil
+	}
+
 	r.m.RLock()
 	defer r.m.RUnlock()
 
