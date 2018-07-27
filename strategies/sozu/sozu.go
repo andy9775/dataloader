@@ -126,9 +126,6 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 			s.startWorker(ctx)
 		case result := <-resultChan:
 			r := (result).GetValue(key)
-			if r == dataloader.MissingValue {
-				return nil
-			}
 			return r
 		}
 
@@ -152,12 +149,7 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 			result := dataloader.NewResultMap(keyArr)
 
 			for _, k := range keyArr {
-				val := r.GetValue(k)
-				if val == dataloader.MissingValue {
-					result.Set(k.String(), nil)
-				} else {
-					result.Set(k.String(), val)
-				}
+				result.Set(k.String(), r.GetValue(k))
 			}
 
 			return result

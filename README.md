@@ -138,7 +138,6 @@ The Options include:
 
 **`NewResultMap([]Key) ResultMap`**<br>
 NewResultMap returns a new instance of a result map where each key's value is
-set to `MissingValue`.
 
 **`Set(string, Result)`**<br>
 Set sets the result in the result map

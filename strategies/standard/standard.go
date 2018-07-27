@@ -88,11 +88,7 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 	case <-s.closeChan:
 		return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
 	case result := <-resultChan:
-		r := result.GetValue(key)
-		if r == dataloader.MissingValue {
-			return nil
-		}
-		return r
+		return result.GetValue(key)
 	}
 }
 
@@ -171,12 +167,7 @@ func buildResultMap(keyArr []dataloader.Key, r dataloader.ResultMap) dataloader.
 	results := dataloader.NewResultMap(keyArr)
 
 	for _, k := range keyArr {
-		val := r.GetValue(k)
-		if val == dataloader.MissingValue {
-			results.Set(k.String(), nil)
-		} else {
-			results.Set(k.String(), val)
-		}
+		results.Set(k.String(), r.GetValue(k))
 	}
 
 	return results

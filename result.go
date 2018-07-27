@@ -21,16 +21,10 @@ type resultMap struct {
 	m *sync.RWMutex
 }
 
-// MissingValue is set for any ResultMap value that cannot be found in the data store.
-const MissingValue = iota
-
 // NewResultMap returns a new instance of the result map for the provided keys.
-// Each value defaults to `MissingValue`
+// Each value defaults to nil
 func NewResultMap(keys []Key) ResultMap {
 	r := make(map[string]Result, len(keys))
-	for _, k := range keys {
-		r[k.String()] = MissingValue
-	}
 
 	return &resultMap{r: r, m: &sync.RWMutex{}}
 }
