@@ -3,7 +3,10 @@ package dataloader
 import "sync"
 
 // Result is an alias for the resolved data by the batch loader
-type Result interface{}
+type Result struct {
+	Result interface{}
+	Err    error
+}
 
 // ResultMap maps each loaded elements Result against the elements unique identifier (Key)
 type ResultMap interface {
@@ -43,7 +46,7 @@ func (r *resultMap) Set(identifier string, value Result) {
 // If no value exists, returns nil
 func (r *resultMap) GetValue(key Key) Result {
 	if key == nil {
-		return nil
+		return Result{}
 	}
 
 	r.m.RLock()

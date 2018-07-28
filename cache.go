@@ -7,10 +7,10 @@ type Cache interface {
 	// SetResultMap passes a ResultMap to the cache
 	SetResultMap(ResultMap)
 	// GetResult returns a single result for a key
-	GetResult(Key) Result
+	GetResult(Key) (Result, bool)
 	// GetResultMap returns a ResultMap for a set of keys. The returned ResultMap
 	// only contains the values that belong to the provided keys
-	GetResultMap(...Key) ResultMap
+	GetResultMap(...Key) (ResultMap, bool)
 }
 
 // ========================== no-op cache implementation ==========================
@@ -27,10 +27,10 @@ func (noopCache) SetResult(key Key, result Result) {}
 
 func (noopCache) SetResultMap(resultMap ResultMap) {}
 
-func (noopCache) GetResult(key Key) Result {
-	return nil
+func (noopCache) GetResult(key Key) (Result, bool) {
+	return Result{}, false
 }
 
-func (noopCache) GetResultMap(keys ...Key) ResultMap {
-	return nil
+func (noopCache) GetResultMap(keys ...Key) (ResultMap, bool) {
+	return nil, false
 }
