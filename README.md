@@ -288,6 +288,8 @@ in a defined and equal group. For instance, the initial call can be to resolve
 - [ ] Tests!!
 - [x] LoadMany - ability to call load with multiple keys
 - [ ] Examples
+- [ ] Logging
+- [ ] Tracing
 
 ## Future
 
