@@ -11,6 +11,9 @@ type Key interface {
 	// the element. It's purpose is to identify each record when storing the results.
 	// Records which should be different but share the same key will be overwritten.
 	String() string
+
+	// Raw should return real value of the key.
+	Raw() interface{}
 }
 
 // Keys wraps an array of keys and contains accessor methods
@@ -19,12 +22,8 @@ type Keys interface {
 	Capacity() int
 	Length() int
 	ClearAll()
-	// UniqueIdentifiers filters out duplicate keys and returns the remaining key's identifiers
-	UniqueIdentifiers() []string
-	Identifiers() []string
-	// Keys returns a slice of the unique key values by calling the `String()`
-	// functions on each element
-	Keys() []Key
+	// Keys returns a an array of unique results after calling Raw on each key
+	Keys() []interface{}
 	IsEmpty() bool
 }
 
@@ -81,40 +80,18 @@ func (k *keys) ClearAll() {
 	k.k = make([]Key, 0, len(k.k))
 }
 
-func (k *keys) Keys() []Key {
+func (k *keys) Keys() []interface{} {
 	k.m.RLock()
 	defer k.m.RUnlock()
 
-	result := make([]Key, k.Length())
-	copy(result, k.k)
-
-	return result
-}
-
-func (k *keys) UniqueIdentifiers() []string {
-	k.m.RLock()
-	defer k.m.RUnlock()
-
-	result := make([]string, 0, k.Length())
+	result := make([]interface{}, 0, k.Length())
 	temp := make(map[Key]bool, k.Length())
 
 	for _, val := range k.k {
 		if _, ok := temp[val]; !ok {
 			temp[val] = true
-			result = append(result, val.String())
+			result = append(result, val.Raw())
 		}
-	}
-
-	return result
-}
-
-func (k *keys) Identifiers() []string {
-	k.m.RLock()
-	defer k.m.RUnlock()
-
-	result := make([]string, 0, len(k.k))
-	for _, k := range k.k {
-		result = append(result, k.String())
 	}
 
 	return result

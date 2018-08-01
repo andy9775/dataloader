@@ -136,8 +136,8 @@ The Options include:
 > each key. This allows the batch function and cache to easily identify keys for
 > which no value could be found (none exists in the database).
 
-**`NewResultMap([]Key) ResultMap`**<br>
-NewResultMap returns a new instance of a result map where each key's value is
+**`NewResultMap(int) ResultMap`**<br>
+NewResultMap returns a new instance of a result map with the set capacity
 
 **`Set(string, Result)`**<br>
 Set sets the result in the result map
@@ -192,12 +192,9 @@ Length returns the number of keys in the array.
 **`ClearAll()`**<br>
 ClearAll deletes all the stored keys from the key array.
 
-**`Identifiers() []string`**<br>
-Identifiers returns an array of strings which is a result of calling the
-`String()` method on each element.
-
-**`Keys() []Key`**<br>
-Keys returns the raw keys stored by the key array.
+**`Keys() []interface{}`**<br>
+Keys returns a unique array of interface{} types for each key after calling each
+keys `Raw()` method
 
 **`IsEmpty() bool`**<br>
 IsEmpty returns true if there are no keys in the keys array.
