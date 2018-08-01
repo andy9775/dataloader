@@ -24,10 +24,10 @@ type resultMap struct {
 	m *sync.RWMutex
 }
 
-// NewResultMap returns a new instance of the result map for the provided keys.
+// NewResultMap returns a new instance of the result map with the provided capacity.
 // Each value defaults to nil
-func NewResultMap(keys []Key) ResultMap {
-	r := make(map[string]Result, len(keys))
+func NewResultMap(capacity int) ResultMap {
+	r := make(map[string]Result, capacity)
 
 	return &resultMap{r: r, m: &sync.RWMutex{}}
 }

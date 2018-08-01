@@ -146,7 +146,7 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 		case <-s.closeChan:
 			s.startWorker(ctx)
 		case r := <-resultChan:
-			result := dataloader.NewResultMap(keyArr)
+			result := dataloader.NewResultMap(len(keyArr))
 
 			for _, k := range keyArr {
 				result.Set(k.String(), r.GetValue(k))

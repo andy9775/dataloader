@@ -164,7 +164,7 @@ func formatOptions(opts *Options) {
 // buildResultMap filters through the provided result map and returns an ResultMap
 // for the provided keys
 func buildResultMap(keyArr []dataloader.Key, r dataloader.ResultMap) dataloader.ResultMap {
-	results := dataloader.NewResultMap(keyArr)
+	results := dataloader.NewResultMap(len(keyArr))
 
 	for _, k := range keyArr {
 		results.Set(k.String(), r.GetValue(k))
