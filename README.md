@@ -93,9 +93,14 @@ the batch function is called.
 Load should return the result for the specified key. Load should not reference
 any cache.
 
-**`LoadMany(context.Context, ...Key ResultMap`**<br>
+**`LoadMany(context.Context, ...Key) ResultMap`**<br>
 LoadMany should return a `ResultMap` which contains **only** the values for the
 provided keys. LoadMany should not implement any caching strategy internally.
+
+**`LoadNoOp() ResultMap`**<br>
+LoadNoOp should not block the caller nor return values to the caller. It is
+called when a value is retrieved from the cache and it's responsibility is to
+increment the internal loads counter.
 
 #### Sozu Strategy
 
