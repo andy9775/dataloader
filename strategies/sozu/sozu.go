@@ -157,6 +157,12 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 	}
 }
 
+func (s *sozuStrategy) LoadNoOp() {
+	// LoadNoOp passes a nil value to the strategy worker and doesn't block the caller.
+	message := workerMessage{k: nil, resultChan: nil}
+	s.keyChan <- message
+}
+
 // ============================================== private =============================================
 func (s *sozuStrategy) startWorker(ctx context.Context) {
 	s.workerMutex.Lock() // ensure only one worker is started
@@ -180,8 +186,14 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 			for r == nil {
 				select {
 				case key := <-s.keyChan:
-					subscribers = append(subscribers, key.resultChan)
-					s.keys.Append(key.k...)
+					// if LoadNoOp passes a value through the chan, ignore the data and increment the counter
+					if key.resultChan != nil {
+						subscribers = append(subscribers, key.resultChan)
+					}
+					if key.k != nil {
+						s.keys.Append(key.k...)
+					}
+
 					if s.counter.Increment() { // hit capacity
 						r = s.batchFunc(ctx, s.keys)
 					}

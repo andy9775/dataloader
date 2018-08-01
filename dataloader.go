@@ -48,6 +48,7 @@ type dataloader struct {
 // Load method references the cache to check if a result already exists for the key.
 func (d *dataloader) Load(ctx context.Context, key Key) Result {
 	if r, ok := d.cache.GetResult(key); ok {
+		d.strategy.LoadNoOp()
 		return r
 	}
 
@@ -62,6 +63,7 @@ func (d *dataloader) Load(ctx context.Context, key Key) Result {
 // in the cache.
 func (d *dataloader) LoadMany(ctx context.Context, keyArr ...Key) ResultMap {
 	if r, ok := d.cache.GetResultMap(keyArr...); ok {
+		d.strategy.LoadNoOp()
 		return r
 	}
 

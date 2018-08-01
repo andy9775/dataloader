@@ -14,4 +14,9 @@ type Strategy interface {
 
 	// LoadMany returns a result map containing all the values for the keys the caller asked for
 	LoadMany(context.Context, ...Key) ResultMap
+
+	// LoadNoNop doesn't block the caller and doesn't return a value when called.
+	// LoadNoOp is called after a cache hit and the found result value is returned to the caller
+	// and thus should simply increment the loads call counter.
+	LoadNoOp()
 }
