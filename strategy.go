@@ -19,5 +19,5 @@ type Strategy interface {
 	// LoadNoNop doesn't block the caller and doesn't return a value when called.
 	// LoadNoOp is called after a cache hit and the found result value is returned to the caller
 	// and thus simply increments the loads call counter.
-	LoadNoOp()
+	LoadNoOp(context.Context)
 }

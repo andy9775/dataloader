@@ -60,7 +60,7 @@ type dataloader struct {
 // it returns a Thunk which simply returns the cached result (non-blocking).
 func (d *dataloader) Load(ctx context.Context, key Key) Thunk {
 	if r, ok := d.cache.GetResult(ctx, key); ok {
-		d.strategy.LoadNoOp()
+		d.strategy.LoadNoOp(ctx)
 		return func() Result {
 			return r
 		}
@@ -81,7 +81,7 @@ func (d *dataloader) Load(ctx context.Context, key Key) Thunk {
 // (non-blocking).
 func (d *dataloader) LoadMany(ctx context.Context, keyArr ...Key) ThunkMany {
 	if r, ok := d.cache.GetResultMap(ctx, keyArr...); ok {
-		d.strategy.LoadNoOp()
+		d.strategy.LoadNoOp(ctx)
 		return func() ResultMap {
 			return r
 		}

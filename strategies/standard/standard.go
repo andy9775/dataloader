@@ -114,7 +114,9 @@ func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Ke
 
 // LoadNoOp passes a nil value to the strategy worker and doesn't block the caller.
 // Internally it increments the load counter ensuring the batch function is called on time.
-func (s *standardStrategy) LoadNoOp() {
+func (s *standardStrategy) LoadNoOp(ctx context.Context) {
+	s.startWorker(ctx) // start the worker in case the first caller is a cache success
+
 	// LoadNoOp passes a nil value to the strategy worker and doesn't block the caller.
 	message := workerMessage{k: nil, resultChan: nil}
 	s.keyChan <- message

@@ -87,4 +87,4 @@ func (s *onceStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 
 // LoadNoOp has no internal implementation since the once strategy doesn't track the number of calls to
 // Load or Loadmany
-func (s *onceStrategy) LoadNoOp() {}
+func (*onceStrategy) LoadNoOp(context.Context) {}

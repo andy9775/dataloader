@@ -97,7 +97,7 @@ not reference a cache nor should it block.
 LoadMany should return a ThunkMany function linked to the provided keys.
 LoadMany should not reference a cache nor should it block.
 
-**`LoadNoOp() ResultMap`**<br>
+**`LoadNoOp(context.Context) ResultMap`**<br>
 LoadNoOp should not block the caller nor return values to the caller. It is
 called when a value is retrieved from the cache and it's responsibility is to
 increment the internal loads counter.
