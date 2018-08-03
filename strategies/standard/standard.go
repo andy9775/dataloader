@@ -31,18 +31,12 @@ func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int)
 	return func(capacity int) dataloader.Strategy {
 		formatOptions(&opts)
 
-		// TODO: requests block on adding keys to key channel if channel capacity is less than 5
-		keyChanCapacity := capacity
-		if capacity < 5 {
-			keyChanCapacity = 5
-		}
-
 		return &standardStrategy{
 			batchFunc: batch,
 			counter:   strategies.NewCounter(capacity),
 
 			workerMutex:     &sync.Mutex{},
-			keyChan:         make(chan workerMessage, keyChanCapacity),
+			keyChan:         make(chan workerMessage, capacity),
 			closeChan:       make(chan struct{}),
 			goroutineStatus: notRunning,
 			options:         opts,
