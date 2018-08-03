@@ -1,9 +1,5 @@
 package dataloader
 
-import (
-	"sync"
-)
-
 // Key is an interface each element identifier must implement in order to be stored and cached
 // in the ResultsMap
 type Key interface {
@@ -29,14 +25,12 @@ type Keys interface {
 
 type keys struct {
 	k []Key
-	m *sync.RWMutex
 }
 
 // NewKeys returns a new instance of the Keys array with the provided capacity.
 func NewKeys(capacity int) Keys {
 	return &keys{
 		k: make([]Key, 0, capacity),
-		m: &sync.RWMutex{},
 	}
 }
 
@@ -45,16 +39,12 @@ func NewKeys(capacity int) Keys {
 func NewKeysWith(key ...Key) Keys {
 	return &keys{
 		k: key,
-		m: &sync.RWMutex{},
 	}
 }
 
 // ================================== public methods ==================================
 
 func (k *keys) Append(keys ...Key) {
-	k.m.Lock()
-	defer k.m.Unlock()
-
 	for _, key := range keys {
 		if key != nil && key.Raw() != nil { // don't track nil keys
 			k.k = append(k.k, key)
@@ -67,23 +57,14 @@ func (k *keys) Capacity() int {
 }
 
 func (k *keys) Length() int {
-	k.m.RLock()
-	defer k.m.RUnlock()
-
 	return len(k.k)
 }
 
 func (k *keys) ClearAll() {
-	k.m.Lock()
-	defer k.m.Unlock()
-
 	k.k = make([]Key, 0, len(k.k))
 }
 
 func (k *keys) Keys() []interface{} {
-	k.m.RLock()
-	defer k.m.RUnlock()
-
 	result := make([]interface{}, 0, k.Length())
 	temp := make(map[Key]bool, k.Length())
 
@@ -98,8 +79,5 @@ func (k *keys) Keys() []interface{} {
 }
 
 func (k *keys) IsEmpty() bool {
-	k.m.RLock()
-	defer k.m.RUnlock()
-
 	return len(k.k) == 0
 }
