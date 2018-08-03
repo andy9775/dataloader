@@ -53,6 +53,7 @@ func NewSozuStrategy(batch dataloader.BatchFunction, opts Options) func(int) dat
 
 			workerMutex:     &sync.Mutex{},
 			keyChan:         make(chan workerMessage, keyChanCapacity),
+			closeChan:       make(chan struct{}),
 			goroutineStatus: notRunning,
 			options:         opts,
 
@@ -83,19 +84,19 @@ type workerMessage struct {
 	resultChan chan dataloader.ResultMap
 }
 
-// Load returns the Result for the specified Key.
-// Internally Load adds a the key to the Keys array and blocks the caller until the batch loader
-// function resolves. Once resolved, Load returns the data to the caller for the specified key.
-// Subsequent calls to the Load function will continue to block until the keys array hits capacity,
-// or the timeout value is hit.
-func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Result {
+// Load returns the Thunk for the specified Key.
+// Internally Load adds a the key to the Keys array and returns a Thunk function which when
+// called returns the result for the key. Subsequent calls to the load function will keep
+// incrementing the load counter until the call count hits capacity which results in the batch
+// function being called.
+func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Thunk {
 	/*
 	 if a result doesn't exist or is not missing, start a new worker (if none is running)
 	 and pass it the key to be resolved by the batch function.
 	*/
 	s.startWorker(ctx)
 
-	resultChan := make(chan dataloader.ResultMap)
+	resultChan := make(chan dataloader.ResultMap, 1) // buffered channel won't block in results loop
 	message := workerMessage{k: []dataloader.Key{key}, resultChan: resultChan}
 	s.keyChan <- message // pass key to the worker go routine
 
@@ -114,48 +115,56 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 		This solution isn't clean, or totally efficient but ensures that a worker will pick up the key
 		and process it.
 	*/
-	for {
-		select {
-		case <-s.closeChan:
-			/*
-				Current worker closed, therefore no readers reading off of the key chan to get
-				the callers buffered key.
-				Start a new worker go routine which will read the existing key off of the key chan.
-			*/
-			s.startWorker(ctx)
-		case result := <-resultChan:
-			r := (result).GetValue(key)
-			return r
+	return func() dataloader.Result {
+		for {
+			select {
+			case <-s.closeChan:
+				/*
+					Current worker closed, therefore no readers reading off of the key chan to get
+					the callers buffered key.
+					Start a new worker go routine which will read the existing key off of the key chan.
+				*/
+				s.startWorker(ctx)
+			case result := <-resultChan:
+				return (result).GetValue(key)
+			}
 		}
-
 	}
-
 }
 
-func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ResultMap {
+// LoadMany returns the ThunkMany for the specified Keys.
+// Internally LoadMany adds a the keys to the Keys array and returns a ThunkMany function which when
+// called returns the result map for the keys. Subsequent calls to the LoadMany function will keep
+// incrementing the load counter until the call count hits capacity which results in the batch
+// function being called.
+func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ThunkMany {
 	s.startWorker(ctx)
 
-	resultChan := make(chan dataloader.ResultMap)
+	resultChan := make(chan dataloader.ResultMap, 1) // buffered channel won't block in results loop
 	message := workerMessage{k: keyArr, resultChan: resultChan}
 	s.keyChan <- message
 
 	// See comments in Load method above
-	for {
-		select {
-		case <-s.closeChan:
-			s.startWorker(ctx)
-		case r := <-resultChan:
-			result := dataloader.NewResultMap(len(keyArr))
+	return func() dataloader.ResultMap {
+		for {
+			select {
+			case <-s.closeChan:
+				s.startWorker(ctx)
+			case r := <-resultChan:
+				result := dataloader.NewResultMap(len(keyArr))
 
-			for _, k := range keyArr {
-				result.Set(k.String(), r.GetValue(k))
+				for _, k := range keyArr {
+					result.Set(k.String(), r.GetValue(k))
+				}
+
+				return result
 			}
-
-			return result
 		}
 	}
 }
 
+// LoadNoOp passes a nil value to the strategy worker and doesn't block the caller.
+// Internally it increments the load counter ensuring the batch function is called on time.
 func (s *sozuStrategy) LoadNoOp() {
 	// LoadNoOp passes a nil value to the strategy worker and doesn't block the caller.
 	message := workerMessage{k: nil, resultChan: nil}
@@ -163,13 +172,15 @@ func (s *sozuStrategy) LoadNoOp() {
 }
 
 // ============================================== private =============================================
+
+// startWorker starts the background go routine if not already running for this strategy instance.
+// The worker accepts keys via an internal channel and calls the batch function once full.
 func (s *sozuStrategy) startWorker(ctx context.Context) {
 	s.workerMutex.Lock() // ensure only one worker is started
 	defer s.workerMutex.Unlock()
 
 	if s.goroutineStatus == notRunning || s.goroutineStatus == ran {
 		s.goroutineStatus = running
-		s.closeChan = make(chan struct{})
 
 		go func(ctx context.Context) {
 			subscribers := make([]chan dataloader.ResultMap, 0, s.keys.Capacity())
@@ -179,6 +190,7 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 				s.keys.ClearAll()
 				s.counter.ResetCount()
 				close(s.closeChan)
+				s.closeChan = make(chan struct{})
 			}()
 
 			var r *dataloader.ResultMap

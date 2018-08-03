@@ -43,6 +43,7 @@ func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int)
 
 			workerMutex:     &sync.Mutex{},
 			keyChan:         make(chan workerMessage, keyChanCapacity),
+			closeChan:       make(chan struct{}),
 			goroutineStatus: notRunning,
 			options:         opts,
 
@@ -73,44 +74,52 @@ type workerMessage struct {
 	resultChan chan dataloader.ResultMap
 }
 
-// Load returns the Result for the specified Key.
-// Internally Load adds Key to the Keys array and blocks the caller until the batch loader
-// function resolves. Once resolved, Load returns the data to the caller for the specified
-// Key
-func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Result {
+// Load returns a Thunk function for the specified Key.
+// Internally Load adds the Key to the Keys array and returns a (blocking) Thunk function which
+// when called returns a value for the provided key.
+func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Thunk {
 	s.startWorker(ctx)
 
-	resultChan := make(chan dataloader.ResultMap)
+	resultChan := make(chan dataloader.ResultMap, 1) // buffered channel won't block in results loop
 	message := workerMessage{k: []dataloader.Key{key}, resultChan: resultChan}
 	s.keyChan <- message // pass key to the worker go routine (buffered channel)
 
-	select {
-	case <-s.closeChan:
-		return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
-	case result := <-resultChan:
-		return result.GetValue(key)
+	return func() dataloader.Result {
+		select {
+		case <-s.closeChan:
+			return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
+		case result := <-resultChan:
+			return result.GetValue(key)
+		}
 	}
 }
 
-func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ResultMap {
+// LoadMany returns a ThunkMany function for the provdied key.
+// Internally, LoadMany adds the keyArr to the keys array and returns a (blocking) ThunkMany function
+// which when called returns values for the provided keys.
+func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ThunkMany {
 	s.startWorker(ctx)
 
-	resultChan := make(chan dataloader.ResultMap)
+	resultChan := make(chan dataloader.ResultMap, 1) // buffered channel won't block in results loop
 	message := workerMessage{k: keyArr, resultChan: resultChan}
 	s.keyChan <- message
 
-	var r dataloader.ResultMap
-	select {
-	case <-s.closeChan: // batch the keys if closed
-		r = *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
-		break
-	case r = <-resultChan:
-		break
-	}
+	return func() dataloader.ResultMap {
+		var r dataloader.ResultMap
+		select {
+		case <-s.closeChan: // batch the keys if closed
+			r = *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
+			break
+		case r = <-resultChan:
+			break
+		}
 
-	return buildResultMap(keyArr, r)
+		return buildResultMap(keyArr, r)
+	}
 }
 
+// LoadNoOp passes a nil value to the strategy worker and doesn't block the caller.
+// Internally it increments the load counter ensuring the batch function is called on time.
 func (s *standardStrategy) LoadNoOp() {
 	// LoadNoOp passes a nil value to the strategy worker and doesn't block the caller.
 	message := workerMessage{k: nil, resultChan: nil}
@@ -119,13 +128,14 @@ func (s *standardStrategy) LoadNoOp() {
 
 // ============================================== private =============================================
 
+// startWorker starts the background go routine if not already running for this strategy instance.
+// The worker accepts keys via an internal channel and calls the batch function once full.
 func (s *standardStrategy) startWorker(ctx context.Context) {
 	s.workerMutex.Lock() // ensure only one worker is started
 	defer s.workerMutex.Unlock()
 
 	if s.goroutineStatus == notRunning {
 		s.goroutineStatus = running
-		s.closeChan = make(chan struct{})
 
 		go func(ctx context.Context) {
 			subscribers := make([]chan dataloader.ResultMap, 0, s.keys.Capacity())
@@ -135,6 +145,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 				s.keys.ClearAll()
 				s.counter.ResetCount()
 				close(s.closeChan)
+				s.closeChan = make(chan struct{})
 			}()
 
 			// loop while adding keys or timeout

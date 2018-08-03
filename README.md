@@ -53,15 +53,15 @@ _n_ number of `status` records. The result of which is a single call to
 the database to return the `status` elements after number of calls to `Load()`
 has hit the set capacity.
 
-Note that the capacity also acts as a _floor_. In instances where at least _n_
+Note that the capacity also acts as a _floor_. In instances where _at least_ _n_
 calls are known, all _n+1_ calls are executed depending on the
 [strategy](#Strategies) used.
 
 Internally, the DataLoader waits for the `Load()` function to be called _n_ times,
-where _n_ is the initial DataLoader capacity. The `Load()` function blocks each
-caller until the number of calls equal the loaders capacity and then each call
-to `Load()` resolves to the requested element once the batch function
-returns.
+where _n_ is the initial DataLoader capacity. The `Load()` function returns a
+Thunk, or ThunkMany function, which block when called until the number of calls
+to Load equal the loaders capacity. Each call to the returned Thunk function
+then returns the values for the keys it is attached to.
 
 ## API
 
@@ -71,31 +71,31 @@ returns.
 > strategy and cache strategy.
 
 **`NewDataLoader(int, func(int) Strategy, Cache) DataLoader`**<br>
-NewDataLoader returns a new instance of a dataloader tracking to the capacity
-provided and using the provided strategy and cache strategy. The second argument
+NewDataLoader returns a new instance of a DataLoader tracking to the capacity
+provided and using the provided execution and cache strategy. The second argument
 should return a strategy which accepts a capacity value
 
-**`Load(context.Context, Key) Result`**<br>
-Returns a single result for the provided key. Load blocks the caller until the
-batch function is called and results are ready. Internally load passes the key
-and context to the provided strategy.
+**`Load(context.Context, Key) Thunk`**<br>
+Returns a Thunk for the specified keys. Internally Load adds the
+provided keys to the keys array and returns a callback function which when
+called returns the values for the provided keys. Load does not block callers.
 
-**`LoadMany(context.Context, ...Key) ResultMap`**<br>
-Returns a `ResultMap` which contains **only** the provided keys. LoadMany works
-just like `Load()` and the number of keys passed to it **do not** impact when
-the batch function is called.
+**`LoadMany(context.Context, ...Key) ThunkMany`**<br>
+Returns a ThunkMany for the specified keys. Internally LoadMany adds the
+provided keys to the keys array and returns a callback function which when
+called returns the values for the provided keys. LoadMany does not block callers.
 
 #### Strategy
 
 > Strategy is a interface to be used by implementors to hold and track data.
 
-**`Load(context.Context, Key) Result`**<br>
-Load should return the result for the specified key. Load should not reference
-any cache.
+**`Load(context.Context, Key) Thunk`**<br>
+Load should return the Thunk function linked to the provided key. Load should
+not reference a cache nor should it block.
 
-**`LoadMany(context.Context, ...Key) ResultMap`**<br>
-LoadMany should return a `ResultMap` which contains **only** the values for the
-provided keys. LoadMany should not implement any caching strategy internally.
+**`LoadMany(context.Context, ...Key) ThunkMany`**<br>
+LoadMany should return a ThunkMany function linked to the provided keys.
+LoadMany should not reference a cache nor should it block.
 
 **`LoadNoOp() ResultMap`**<br>
 LoadNoOp should not block the caller nor return values to the caller. It is
@@ -105,7 +105,9 @@ increment the internal loads counter.
 #### Sozu Strategy
 
 > The sozu strategy batches all calls to the batch function, including _n+1_
-> calls
+> calls. Since the strategy returns a Thunk or ThunkMany, calling Load or
+> LoadMany before performing another long running process will allow the batch
+> function to run concurrently to any other operations.
 
 **`NewSozuStrategy(BatchFunction, Options) func(int) Strategy`**<br>
 NewSozuStrategy returns a function which returns a new instance of a sozu
@@ -119,7 +121,10 @@ The Options values include:
 #### Standard Strategy
 
 > The standard strategy batches the first calls to the batch function, all
-> subsequent callers call the batch function directly.
+> subsequent callers call the batch function directly. Since the strategy
+> returns a Thunk or ThunkMany, calling Load or LoadMany before performing
+> another long running process will allow the batch function to run concurrently
+> to any other operations.
 
 **`NewStandardStrategy(BatchFunction, Options) func(int) Strategy`**<br>
 NewStandardStrategy returns a function which returns a new instance of the
@@ -132,14 +137,11 @@ The Options include:
 
 #### ResultMap
 
-> ResultMap acts as a wrapper around a basic `map[string]Result` but is
-> thread-safe and provides accessor functions that tell the callers about the map
-> or its state.
+> ResultMap acts as a wrapper around a basic `map[string]Result` and provides
+> accessor functions that tell the callers about the map or its state. ResultMap
+> is not go routine safe.
 >
-> When creating a new instance of the result map, an array of the
-> Keys must be provided. The returned result map will assign `MissingValue` to
-> each key. This allows the batch function and cache to easily identify keys for
-> which no value could be found (none exists in the database).
+> When creating a new instance of the result map, a capacity must be provided.
 
 **`NewResultMap(int) ResultMap`**<br>
 NewResultMap returns a new instance of a result map with the set capacity
@@ -169,15 +171,19 @@ String should return a string representation of the unique identifier. The
 resulting string is used in the `ResultMap` to map the element to it's
 identifier.
 
+**`Raw() interface{}`**<br>
+Raw should return the underlying value of the key. Examples are: `int`, `string`.
+
 #### Keys
 
-> Keys wraps an array of keys and provides a thread-safe way of tracking keys to
+> Keys wraps an array of keys and provides a way of tracking keys to
 > be resolved by the batch function. It also provides methods to tell its state.
+> Keys is not go routine safe.
 
 **`NewKeys(int) Keys`**<br>
 NewKeys returns a new key store with it's length set to the capacity. If the
 capacity is known to be exact provide the exact value. Otherwise adding a buffer
-can be useful.
+can be useful to prevent unnecessary memory growth.
 
 **`NewKeysWith(key ...Key) Keys`**<br>
 NewKeysWith returns a Keys array with the provided keys.
@@ -208,7 +214,7 @@ IsEmpty returns true if there are no keys in the keys array.
 
 **`NewNoOpCache() Cache`**<br>
 NewNoOpCache returns an instance of a no operation cache. Internally it doesn't
-store any values and all it's getter methods return nil.
+store any values and all it's getter methods return nil or false.
 
 **`SetResult(context.Context, Key, Result)`**<br>
 SetResult adds a value to the cache. The cache should store the value based on
@@ -248,6 +254,12 @@ it's capacity.
 ResetCounter sets the counter back to 0 but keeps the original capacity.
 
 ## Strategies
+
+Both the `Standard` and `Sozu` strategies allow for concurrent operations before
+executing the returned Thunk function and both ensure that other callers are not
+blocked when waiting for data to be read. This allows certain resolvers that use
+a shared strategy to block some of the time while allowing other resolvers to
+receive their data and continue their operations.
 
 ### Standard
 
