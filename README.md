@@ -213,25 +213,25 @@ IsEmpty returns true if there are no keys in the keys array.
 NewNoOpCache returns an instance of a no operation cache. Internally it doesn't
 store any values and all it's getter methods return nil.
 
-**`SetResult(Key, Result)`**<br>
+**`SetResult(context.Context, Key, Result)`**<br>
 SetResult adds a value to the cache. The cache should store the value based on
 it's implementation.
 
-**`SetResultMap(ResultMap)`**<br>
+**`SetResultMap(context.Context, ResultMap)`**<br>
 SetResultMap saves all the elements in the provided ResultMap
 
-**`GetResult(Key) Result`**<br>
+**`GetResult(context.Context, Key) Result`**<br>
 GetResult should return the result matching the key or nil if none are found.
 
-**`GetResultMap(...Key) ResultMap`**<br>
+**`GetResultMap(context.Context, ...Key) ResultMap`**<br>
 GetResultMap returns a result map which contains the values for only the
 provided keys.
 
-**`Delete(Key)`**<br>
-Delete removes the value for the provided key.
+**`Delete(context.Context, Key) bool`**<br>
+Delete removes the value for the provided key and returns true if successful.
 
-**`Clear()`**<br>
-Clear removes all values from the cache.
+**`ClearAll(context.Context) bool`**<br>
+ClearAll removes all values from the cache and returns true if successfully cleared
 
 #### Counter
 
