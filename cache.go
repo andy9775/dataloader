@@ -14,9 +14,9 @@ type Cache interface {
 	// only contains the values that belong to the provided keys
 	GetResultMap(context.Context, ...Key) (ResultMap, bool)
 	// Delete removes the specific value for the provided key
-	Delete(context.Context, Key)
+	Delete(context.Context, Key) bool
 	// Clear cleans the cache
-	Clear(context.Context)
+	Clear(context.Context) bool
 }
 
 // ========================== no-op cache implementation ==========================
@@ -41,6 +41,6 @@ func (*noopCache) GetResultMap(ctx context.Context, keys ...Key) (ResultMap, boo
 	return nil, false
 }
 
-func (*noopCache) Delete(ctx context.Context, key Key) {}
+func (*noopCache) Delete(ctx context.Context, key Key) bool { return true }
 
-func (*noopCache) Clear(ctx context.Context) {}
+func (*noopCache) Clear(ctx context.Context) bool { return true }
