@@ -159,9 +159,6 @@ Length returns the number of results it contains.
 **`Keys() []string`**<br>
 Keys returns the keys used to identify the data within this result map.
 
-**`MergeWith(*ResultMap)`**<br>
-MergeWith will join this result map with a provided result map.
-
 #### Key
 
 > Key is an interface each element's identifier must implement. Each Key must be

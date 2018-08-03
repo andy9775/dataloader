@@ -13,7 +13,6 @@ type ResultMap interface {
 	Length() int
 	// Keys returns a slice of all unique identifiers used in the containing map (keys)
 	Keys() []string
-	MergeWith(*ResultMap)
 	GetValueForString(string) Result
 }
 
@@ -62,10 +61,4 @@ func (r *resultMap) Keys() []string {
 
 func (r *resultMap) Length() int {
 	return len(r.r)
-}
-
-func (r *resultMap) MergeWith(m *ResultMap) {
-	for _, k := range (*m).Keys() {
-		r.r[k] = (*m).GetValueForString(k)
-	}
 }
