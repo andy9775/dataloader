@@ -47,13 +47,13 @@ type dataloader struct {
 // Load returns the Result for the specified Key by calling the Load method on the provided strategy.
 // Load method references the cache to check if a result already exists for the key.
 func (d *dataloader) Load(ctx context.Context, key Key) Result {
-	if r, ok := d.cache.GetResult(key); ok {
+	if r, ok := d.cache.GetResult(ctx, key); ok {
 		d.strategy.LoadNoOp()
 		return r
 	}
 
 	result := d.strategy.Load(ctx, key)
-	d.cache.SetResult(key, result)
+	d.cache.SetResult(ctx, key, result)
 
 	return result
 }
@@ -62,13 +62,13 @@ func (d *dataloader) Load(ctx context.Context, key Key) Result {
 // LoadMany references the cache and returns a ResultMap if all the keys are already present
 // in the cache.
 func (d *dataloader) LoadMany(ctx context.Context, keyArr ...Key) ResultMap {
-	if r, ok := d.cache.GetResultMap(keyArr...); ok {
+	if r, ok := d.cache.GetResultMap(ctx, keyArr...); ok {
 		d.strategy.LoadNoOp()
 		return r
 	}
 
 	result := d.strategy.LoadMany(ctx, keyArr...)
-	d.cache.SetResultMap(result)
+	d.cache.SetResultMap(ctx, result)
 
 	return result
 }

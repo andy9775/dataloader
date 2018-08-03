@@ -1,20 +1,22 @@
 package dataloader
 
+import "context"
+
 // Cache provides an interface for caching strategies
 type Cache interface {
 	// SetResult sets a single result for a specified key
-	SetResult(Key, Result)
+	SetResult(context.Context, Key, Result)
 	// SetResultMap passes a ResultMap to the cache
-	SetResultMap(ResultMap)
+	SetResultMap(context.Context, ResultMap)
 	// GetResult returns a single result for a key
-	GetResult(Key) (Result, bool)
+	GetResult(context.Context, Key) (Result, bool)
 	// GetResultMap returns a ResultMap for a set of keys. The returned ResultMap
 	// only contains the values that belong to the provided keys
-	GetResultMap(...Key) (ResultMap, bool)
+	GetResultMap(context.Context, ...Key) (ResultMap, bool)
 	// Delete removes the specific value for the provided key
-	Delete(Key)
+	Delete(context.Context, Key)
 	// Clear cleans the cache
-	Clear()
+	Clear(context.Context)
 }
 
 // ========================== no-op cache implementation ==========================
@@ -27,18 +29,18 @@ func NewNoOpCache() Cache {
 // noopCache does not cache any values, always return nil for any request to get data.
 type noopCache struct{}
 
-func (*noopCache) SetResult(key Key, result Result) {}
+func (*noopCache) SetResult(ctx context.Context, key Key, result Result) {}
 
-func (*noopCache) SetResultMap(resultMap ResultMap) {}
+func (*noopCache) SetResultMap(ctx context.Context, resultMap ResultMap) {}
 
-func (*noopCache) GetResult(key Key) (Result, bool) {
+func (*noopCache) GetResult(ctx context.Context, key Key) (Result, bool) {
 	return Result{}, false
 }
 
-func (*noopCache) GetResultMap(keys ...Key) (ResultMap, bool) {
+func (*noopCache) GetResultMap(ctx context.Context, keys ...Key) (ResultMap, bool) {
 	return nil, false
 }
 
-func (*noopCache) Delete(key Key) {}
+func (*noopCache) Delete(ctx context.Context, key Key) {}
 
-func (*noopCache) Clear() {}
+func (*noopCache) Clear(ctx context.Context) {}
