@@ -135,6 +135,27 @@ The Options include:
 - Timeout `time.Duration` - the time after which the batch function will be
   called if the capacity is not hit. `Default: 6 milliseconds`
 
+#### Once Strategy
+
+> The once strategy does not track calls to load and is useful for single calls
+> to the batch function. Passing `InBackground: true` to the options allows the
+> batch function to be called in the background, otherwise the batch function is
+> called when Thunk, or ThunkMany, is called. It is useful for keeping a
+> consistent API across an application and for automatically performing data
+> queries in a background go routine.
+
+**`NewOnceStrategy(BatchFunction, Options) func(int) Strategy`**<br>
+NewOnceStrategy returns a functions which returns an instance of the once
+strategy ignoring the provided capacity value.
+
+The Options include:
+
+- InBackground `bool` - if true the batch function will be invoked in a
+  background go routine as soon as Load or LoadMany is called. If the batch
+  function executes in the background before calling Thunk/ThunkMany, calls
+  will not block and return data. Else calls to Thunk/ThunkMany will block until
+  the batch function executes.
+
 #### ResultMap
 
 > ResultMap acts as a wrapper around a basic `map[string]Result` and provides
@@ -296,6 +317,23 @@ in a defined and equal group. For instance, the initial call can be to resolve
 10 keys. Then it should be known that if there are more keys, that there will be
 10 more keys resulting in the batch function being called twice, each time with
 10 keys.
+
+### Once
+
+The once strategy initially calls the batch function under one of two
+conditions:
+
+1.  If `InBackground` option is false, it executes the batch function then Thunk
+    is invoked
+2.  If `InBackground` option is true, it executes the batch function in a
+    background go routine. Calls to the Thunk function will block until the go
+    routine completes.
+
+The once strategy is useful when wanting to execute a batch function a single
+time either directly, and keeping a consistent application api aligning with the
+other functions. Or when wanting to call the batch function in the background
+while performing some other time consuming operation and not wanting to handle
+the actual go routine.
 
 ## TODO
 
