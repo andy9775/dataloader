@@ -66,7 +66,6 @@ type sozuStrategy struct {
 	// Track the keys to pass to the batch function. Once len(keys) == cap(keys),
 	// the batch loading function is called with the keys to resolve.
 	keys      dataloader.Keys
-	results   *dataloader.ResultMap
 	batchFunc dataloader.BatchFunction
 
 	workerMutex *sync.Mutex
