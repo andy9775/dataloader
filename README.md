@@ -225,7 +225,13 @@ GetResult should return the result matching the key or nil if none are found.
 
 **`GetResultMap(...Key) ResultMap`**<br>
 GetResultMap returns a result map which contains the values for only the
-provided keys
+provided keys.
+
+**`Delete(Key)`**<br>
+Delete removes the value for the provided key.
+
+**`Clear()`**<br>
+Clear removes all values from the cache.
 
 #### Counter
 
