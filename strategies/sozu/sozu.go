@@ -47,7 +47,6 @@ func NewSozuStrategy(batch dataloader.BatchFunction, opts Options) func(int) dat
 
 			workerMutex:     &sync.Mutex{},
 			keyChan:         make(chan workerMessage, capacity),
-			closeChan:       make(chan struct{}),
 			goroutineStatus: notRunning,
 			options:         opts,
 
@@ -112,6 +111,13 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 	return func() dataloader.Result {
 		for {
 			select {
+			case result := <-resultChan:
+				return result.GetValue(key)
+			default:
+			}
+			select {
+			case result := <-resultChan:
+				return result.GetValue(key)
 			case <-s.closeChan:
 				/*
 					Current worker closed, therefore no readers reading off of the key chan to get
@@ -119,8 +125,6 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 					Start a new worker go routine which will read the existing key off of the key chan.
 				*/
 				s.startWorker(ctx)
-			case result := <-resultChan:
-				return (result).GetValue(key)
 			}
 		}
 	}
@@ -142,8 +146,6 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 	return func() dataloader.ResultMap {
 		for {
 			select {
-			case <-s.closeChan:
-				s.startWorker(ctx)
 			case r := <-resultChan:
 				result := dataloader.NewResultMap(len(keyArr))
 
@@ -152,6 +154,19 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 				}
 
 				return result
+			default:
+			}
+			select {
+			case r := <-resultChan:
+				result := dataloader.NewResultMap(len(keyArr))
+
+				for _, k := range keyArr {
+					result.Set(k.String(), r.GetValue(k))
+				}
+
+				return result
+			case <-s.closeChan:
+				s.startWorker(ctx)
 			}
 		}
 	}
@@ -177,6 +192,7 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 
 	if s.goroutineStatus == notRunning || s.goroutineStatus == ran {
 		s.goroutineStatus = running
+		s.closeChan = make(chan struct{})
 
 		go func(ctx context.Context) {
 			subscribers := make([]chan dataloader.ResultMap, 0, s.keys.Capacity())
@@ -186,7 +202,6 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 				s.keys.ClearAll()
 				s.counter.ResetCount()
 				close(s.closeChan)
-				s.closeChan = make(chan struct{})
 			}()
 
 			var r *dataloader.ResultMap
