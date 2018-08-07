@@ -132,6 +132,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 
 	if s.goroutineStatus == notRunning {
 		s.goroutineStatus = running
+		s.closeChan = make(chan struct{})
 
 		go func(ctx context.Context) {
 			subscribers := make([]chan dataloader.ResultMap, 0, s.keys.Capacity())
@@ -141,7 +142,6 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 				s.keys.ClearAll()
 				s.counter.ResetCount()
 				close(s.closeChan)
-				s.closeChan = make(chan struct{})
 			}()
 
 			// loop while adding keys or timeout
