@@ -45,11 +45,12 @@ func getBatchFunction(cb func(), result dataloader.Result) dataloader.BatchFunct
 // signal that it completed within the defined time
 func timeout(t *testing.T, timeoutChannel chan struct{}, after time.Duration) {
 	go func() {
+		time.Sleep(after)
 		select {
-		case <-time.After(after):
-			panic(fmt.Sprintf("%s took too long to execute", t.Name()))
 		case <-timeoutChannel:
 			return
+		default:
+			panic(fmt.Sprintf("%s took too long to execute", t.Name()))
 		}
 	}()
 }
@@ -61,7 +62,6 @@ func timeout(t *testing.T, timeoutChannel chan struct{}, after time.Duration) {
 // once the thunk function is called (returned from `Load`). It also checks for the returned
 // result
 func TestBatchLoadInForegroundCalled(t *testing.T) {
-	t.Parallel()
 	// setup
 	called := false
 	expectedResult := "result_foreground_load"
@@ -88,7 +88,6 @@ func TestBatchLoadInForegroundCalled(t *testing.T) {
 // once the thunk function is called (returned from `LoadMany`). It also checks for the
 // returned result
 func TestBatchLoadManyInForegroundCalled(t *testing.T) {
-	t.Parallel()
 	// setup
 	called := false
 	expectedResult := "result_foreground_load_many"
@@ -121,7 +120,6 @@ called. If the Load() call blocks (via blockWG.Wait()), then the test will timeo
 // TestBatchLoadInBackgroundCalled asserts that the once strategy will call the batch function
 // when Load is called. It also checks for the returned result
 func TestBatchLoadInBackgroundCalled(t *testing.T) {
-	t.Parallel()
 	// setup
 	wg := sync.WaitGroup{} // ensure batch function called before asserting
 	wg.Add(1)
@@ -158,7 +156,6 @@ func TestBatchLoadInBackgroundCalled(t *testing.T) {
 // TestBatchLoadManyInBackgroundCalled asserts that the once strategy will call the batch function
 // when LoadMany is called. It also checks for the returned result
 func TestBatchLoadManyInBackgroundCalled(t *testing.T) {
-	t.Parallel()
 	// setup
 	wg := sync.WaitGroup{} // ensure batch function called before asserting
 	wg.Add(1)
