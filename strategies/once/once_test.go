@@ -63,9 +63,9 @@ func timeout(t *testing.T, timeoutChannel chan struct{}, after time.Duration) {
 // result
 func TestBatchLoadInForegroundCalled(t *testing.T) {
 	// setup
-	called := false
+	callCount := 0
 	expectedResult := "result_foreground_load"
-	cb := func() { called = true }
+	cb := func() { callCount += 1 }
 
 	key := PrimaryKey(1)
 	result := dataloader.Result{Result: expectedResult, Err: nil}
@@ -77,10 +77,10 @@ func TestBatchLoadInForegroundCalled(t *testing.T) {
 	// invoke/assert
 
 	thunk := strategy.Load(context.Background(), key)
-	assert.False(t, called, "Batch function not expected to be called on Load()")
+	assert.Equal(t, 0, callCount, "Batch function not expected to be called on Load()")
 
 	r := thunk()
-	assert.True(t, called, "Batch function expected to be called on thunk()")
+	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunk()")
 	assert.Equal(t, expectedResult, r.Result.(string), "Expected result from batch function")
 }
 
@@ -89,9 +89,9 @@ func TestBatchLoadInForegroundCalled(t *testing.T) {
 // returned result
 func TestBatchLoadManyInForegroundCalled(t *testing.T) {
 	// setup
-	called := false
+	callCount := 0
 	expectedResult := "result_foreground_load_many"
-	cb := func() { called = true }
+	cb := func() { callCount += 1 }
 
 	key := PrimaryKey(1)
 	result := dataloader.Result{Result: expectedResult, Err: nil}
@@ -103,10 +103,10 @@ func TestBatchLoadManyInForegroundCalled(t *testing.T) {
 	// invoke/assert
 
 	thunkMany := strategy.LoadMany(context.Background(), key, key)
-	assert.False(t, called, "Batch function not expected to be called on LoadMany()")
+	assert.Equal(t, 0, callCount, "Batch function not expected to be called on LoadMany()")
 
 	r := thunkMany()
-	assert.True(t, called, "Batch function expected to be called on thunkMany()")
+	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunkMany()")
 	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
 }
 
@@ -129,9 +129,9 @@ func TestBatchLoadInBackgroundCalled(t *testing.T) {
 	closeChan := make(chan struct{})
 	timeout(t, closeChan, TEST_TIMEOUT)
 
-	called := false
+	callCount := 0
 	expectedResult := "result_background_load"
-	cb := func() { blockWG.Wait(); called = true; close(closeChan); wg.Done() }
+	cb := func() { blockWG.Wait(); callCount = +1; close(closeChan); wg.Done() }
 
 	key := PrimaryKey(1)
 	result := dataloader.Result{Result: expectedResult, Err: nil}
@@ -143,11 +143,11 @@ func TestBatchLoadInBackgroundCalled(t *testing.T) {
 	// invoke/assert
 
 	thunk := strategy.Load(context.Background(), key)
-	assert.False(t, called, "Load() not expected to block and call batch function")
+	assert.Equal(t, 0, callCount, "Load() not expected to block and call batch function")
 	blockWG.Done() // allow callback function to complete in background
 	wg.Wait()      // wait for callback to complete
 
-	assert.True(t, called, "Batch function expected to be called on Load() in background")
+	assert.Equal(t, 1, callCount, "Batch function expected to be called on Load() in background")
 
 	r := thunk()
 	assert.Equal(t, expectedResult, r.Result.(string), "Expected value from batch function")
@@ -165,9 +165,9 @@ func TestBatchLoadManyInBackgroundCalled(t *testing.T) {
 	closeChan := make(chan struct{})
 	timeout(t, closeChan, TEST_TIMEOUT)
 
-	called := false
+	callCount := 0
 	expectedResult := "result_background_load_many"
-	cb := func() { blockWG.Wait(); called = true; close(closeChan); wg.Done() }
+	cb := func() { blockWG.Wait(); callCount += 1; close(closeChan); wg.Done() }
 
 	key := PrimaryKey(1)
 	result := dataloader.Result{Result: expectedResult, Err: nil}
@@ -179,11 +179,11 @@ func TestBatchLoadManyInBackgroundCalled(t *testing.T) {
 	// invoke/assert
 
 	thunkMany := strategy.LoadMany(context.Background(), key, key)
-	assert.False(t, called, "LoadMany() not expected to block and call batch function")
+	assert.Equal(t, 0, callCount, "LoadMany() not expected to block and call batch function")
 	blockWG.Done() // allow callback function to complete in background
 	wg.Wait()      // wait for callback to complete
 
-	assert.True(t, called, "Batch function expected to be called on LoadMany()")
+	assert.Equal(t, 1, callCount, "Batch function expected to be called on LoadMany()")
 
 	r := thunkMany()
 	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
