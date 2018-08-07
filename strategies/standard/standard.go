@@ -79,11 +79,20 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 	s.keyChan <- message // pass key to the worker go routine (buffered channel)
 
 	return func() dataloader.Result {
+		/*
+		 dual select statements allow prioritization of cases in situations where both channels have data
+		*/
 		select {
-		case <-s.closeChan:
-			return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
 		case result := <-resultChan:
 			return result.GetValue(key)
+		default:
+		}
+
+		select {
+		case result := <-resultChan:
+			return result.GetValue(key)
+		case <-s.closeChan:
+			return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
 		}
 	}
 }
@@ -99,16 +108,22 @@ func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Ke
 	s.keyChan <- message
 
 	return func() dataloader.ResultMap {
-		var r dataloader.ResultMap
+		/*
+			dual select statements allow prioritization of cases in situations where both channels have data
+		*/
 		select {
-		case <-s.closeChan: // batch the keys if closed
-			r = *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
-			break
-		case r = <-resultChan:
-			break
+		case r := <-resultChan:
+			return buildResultMap(keyArr, r)
+		default:
 		}
 
-		return buildResultMap(keyArr, r)
+		select {
+		case r := <-resultChan:
+			return buildResultMap(keyArr, r)
+		case <-s.closeChan: // batch the keys if closed
+			r := *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
+			return buildResultMap(keyArr, r)
+		}
 	}
 }
 
