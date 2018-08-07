@@ -110,11 +110,15 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 	*/
 	return func() dataloader.Result {
 		for {
+			/*
+				dual select statements allow prioritization of cases in situations where both channels have data
+			*/
 			select {
 			case result := <-resultChan:
 				return result.GetValue(key)
 			default:
 			}
+
 			select {
 			case result := <-resultChan:
 				return result.GetValue(key)
@@ -145,6 +149,9 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 	// See comments in Load method above
 	return func() dataloader.ResultMap {
 		for {
+			/*
+				dual select statements allow prioritization of cases in situations where both channels have data
+			*/
 			select {
 			case r := <-resultChan:
 				result := dataloader.NewResultMap(len(keyArr))
@@ -156,6 +163,7 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 				return result
 			default:
 			}
+
 			select {
 			case r := <-resultChan:
 				result := dataloader.NewResultMap(len(keyArr))
