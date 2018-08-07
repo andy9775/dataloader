@@ -1,0 +1,19 @@
+language: go
+
+sudo: false
+
+go:
+  - tip
+
+git:
+  depth: 1
+
+before_install:
+  - go get github.com/mattn/goveralls
+
+install:
+  - go get -u github.com/golang/dep/...
+  - dep ensure
+
+script:
+  - goveralls -v -race -service=travis-ci
