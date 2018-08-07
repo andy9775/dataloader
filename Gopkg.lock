@@ -2,6 +2,18 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "github.com/bluele/go-timecop"
+  packages = ["."]
+  revision = "f599da2cddda2745c1da23fdfa992c7525018f26"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/bouk/monkey"
+  packages = ["."]
+  revision = "5df1f207ff77e025801505ae4d903133a0b4353f"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -22,6 +34,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a3f0936778bf7527e2d281c9627a81eef5b758c989349ae8b3e3d62e2a720880"
+  inputs-digest = "38ab73ca17eaed324f989af4a3059b0731b50864d07da87277d34af0b3bb3256"
   solver-name = "gps-cdcl"
   solver-version = 1
