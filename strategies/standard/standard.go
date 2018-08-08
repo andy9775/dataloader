@@ -153,6 +153,9 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 			subscribers := make([]chan dataloader.ResultMap, 0, s.keys.Capacity())
 
 			defer func() {
+				s.workerMutex.Lock()
+				defer s.workerMutex.Unlock()
+
 				s.goroutineStatus = ran
 				s.keys.ClearAll()
 				s.counter.ResetCount()
