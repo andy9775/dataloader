@@ -340,7 +340,7 @@ the actual go routine.
 - [x] Set a max duration that a call to `Load(Key)` can block. Start from the
       initial call to `Load(Key)`.
 - [x] Caching approach/interface
-- [ ] Tests!!
+- [x] Tests!!
 - [x] LoadMany - ability to call load with multiple keys
 - [ ] Examples
 - [ ] Logging
