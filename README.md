@@ -8,7 +8,7 @@ DataLoader implements a counter which can be used against Field Resolver
 functions. It calls a **batch** function after the number of calls to Load values
 reaches the loaders capacity.
 
-## Terminology
+##### Terminology
 
 The following terms are used throughout the documentation:
 
