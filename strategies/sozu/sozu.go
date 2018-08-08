@@ -1,5 +1,5 @@
 /*
-Package sozu contains implentation details for the sozu strategy.
+Package sozu contains implementation details for the sozu strategy.
 
 The sozu strategy attempts to execute the batch function everytime the keys array
 hits capacity. Then subsequent calls to Load(), after the batch function has been
