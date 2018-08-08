@@ -241,6 +241,8 @@ func TestLoadTimeout(t *testing.T) {
 		wg.Done()
 	}
 
+	toWG := sync.WaitGroup{}
+	toWG.Add(1)
 	timedOut := false
 	monkey.Patch(time.After, func(t time.Duration) <-chan time.Time {
 		defer monkey.Unpatch(time.After)
@@ -249,6 +251,7 @@ func TestLoadTimeout(t *testing.T) {
 		go func() {
 			time.Sleep(t)
 			timedOut = true
+			toWG.Done()
 			toChan <- time.Now()
 		}()
 
@@ -270,6 +273,7 @@ func TestLoadTimeout(t *testing.T) {
 	blockWG.Done()
 	wg.Wait()
 
+	toWG.Wait()
 	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 	assert.Equal(t, 1, len(k), "Expected to be called with 1 key")
 	assert.True(t, timedOut, "Expected loader to timeout")
@@ -322,6 +326,8 @@ func TestLoadManyTimeout(t *testing.T) {
 		wg.Done()
 	}
 
+	toWG := sync.WaitGroup{}
+	toWG.Add(1)
 	timedOut := false
 	monkey.Patch(time.After, func(t time.Duration) <-chan time.Time {
 		defer monkey.Unpatch(time.After)
@@ -330,6 +336,7 @@ func TestLoadManyTimeout(t *testing.T) {
 		go func() {
 			time.Sleep(t)
 			timedOut = true
+			toWG.Done()
 			toChan <- time.Now()
 		}()
 
@@ -352,6 +359,7 @@ func TestLoadManyTimeout(t *testing.T) {
 	blockWG.Done()
 	wg.Wait()
 
+	toWG.Wait()
 	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 	assert.Equal(t, 1, len(k), "Expected to be called with 1 key")
 	assert.True(t, timedOut, "Expected loader to timeout")
