@@ -113,9 +113,8 @@ func TestLoadTimeoutTriggered(t *testing.T) {
 	key := PrimaryKey(1)
 	key2 := PrimaryKey(2)
 
-	opts := sozu.Options{}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(opts)(10, batch) // expects 10 load calls
+	strategy := sozu.NewSozuStrategy()(10, batch) // expects 10 load calls
 
 	// invoke/assert
 
@@ -187,9 +186,8 @@ func TestLoadManyTimeoutTriggered(t *testing.T) {
 	key2 := PrimaryKey(2)
 	key3 := PrimaryKey(3)
 
-	opts := sozu.Options{}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(opts)(10, batch) // expected 10 load calls
+	strategy := sozu.NewSozuStrategy()(10, batch) // expected 10 load calls
 
 	// invoke/assert
 
@@ -265,14 +263,12 @@ func TestLoadTriggered(t *testing.T) {
 
 	key := PrimaryKey(1)
 
-	opts := sozu.Options{
-		/*
-			ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
-		*/
-		Timeout: TEST_TIMEOUT * 5,
-	}
+	/*
+		ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
+	*/
+	timeout := TEST_TIMEOUT * 5
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(opts)(2, batch) // expected 2 load calls
+	strategy := sozu.NewSozuStrategy(sozu.WithTimeout(timeout))(2, batch) // expected 2 load calls
 
 	// invoke/assert
 
@@ -337,14 +333,12 @@ func TestLoadManyTriggered(t *testing.T) {
 	key := PrimaryKey(1)
 	key2 := PrimaryKey(2)
 
-	opts := sozu.Options{
-		/*
-			ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
-		*/
-		Timeout: TEST_TIMEOUT * 5,
-	}
+	/*
+		ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
+	*/
+	timeout := TEST_TIMEOUT * 5
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(opts)(2, batch) // expected 2 load calls
+	strategy := sozu.NewSozuStrategy(sozu.WithTimeout(timeout))(2, batch) // expected 2 load calls
 
 	// invoke/assert
 
@@ -400,14 +394,12 @@ func TestLoadBlocked(t *testing.T) {
 
 	key := PrimaryKey(1)
 
-	opts := sozu.Options{
-		/*
-			ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
-		*/
-		Timeout: TEST_TIMEOUT * 5,
-	}
+	/*
+		ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
+	*/
+	timeout := TEST_TIMEOUT * 5
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(opts)(2, batch) // expected 2 load calls
+	strategy := sozu.NewSozuStrategy(sozu.WithTimeout(timeout))(2, batch) // expected 2 load calls
 
 	// invoke/assert
 
@@ -456,14 +448,12 @@ func TestLoadManyBlocked(t *testing.T) {
 	key := PrimaryKey(1)
 	key2 := PrimaryKey(2)
 
-	opts := sozu.Options{
-		/*
-			ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
-		*/
-		Timeout: TEST_TIMEOUT * 5,
-	}
+	/*
+		ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
+	*/
+	timeout := TEST_TIMEOUT * 5
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(opts)(2, batch) // expected 2 load calls
+	strategy := sozu.NewSozuStrategy(sozu.WithTimeout(timeout))(2, batch) // expected 2 load calls
 
 	// invoke/assert
 

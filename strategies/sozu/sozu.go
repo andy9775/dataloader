@@ -19,9 +19,12 @@ import (
 )
 
 // Options contains the strategy configuration
-type Options struct {
-	Timeout time.Duration
+type options struct {
+	timeout time.Duration
 }
+
+// Option accepts the dataloader and sets an option on it.
+type Option func(*options)
 
 // go routine status values
 // Ensure that only one worker go routine is working to call the batch function
@@ -37,9 +40,16 @@ const (
 // a specified timeout duration (see Options) to ensure it doesn't block for too long.
 // It attempts to ensure that each call to the batch function includes an array of keys
 // whose length is >= 1 and <= the capacity.
-func NewSozuStrategy(opts Options) func(int, dataloader.BatchFunction) dataloader.Strategy {
+func NewSozuStrategy(opts ...Option) func(int, dataloader.BatchFunction) dataloader.Strategy {
 	return func(capacity int, batch dataloader.BatchFunction) dataloader.Strategy {
-		formatOptions(&opts)
+		// default options
+		o := options{}
+		formatOptions(&o)
+
+		// format options
+		for _, apply := range opts {
+			apply(&o)
+		}
 
 		return &sozuStrategy{
 			batchFunc: batch,
@@ -48,12 +58,23 @@ func NewSozuStrategy(opts Options) func(int, dataloader.BatchFunction) dataloade
 			workerMutex:     &sync.Mutex{},
 			keyChan:         make(chan workerMessage, capacity),
 			goroutineStatus: notRunning,
-			options:         opts,
+			options:         o,
 
 			keys: dataloader.NewKeys(capacity),
 		}
 	}
 }
+
+// ============================================== option setters =============================================
+
+// WithTimeout sets the timeout value for the strategy
+func WithTimeout(t time.Duration) Option {
+	return func(o *options) {
+		o.timeout = t
+	}
+}
+
+// ===========================================================================================================
 
 type sozuStrategy struct {
 	counter strategies.Counter
@@ -69,7 +90,7 @@ type sozuStrategy struct {
 
 	goroutineStatus int
 
-	options Options
+	options options
 }
 
 type workerMessage struct {
@@ -230,7 +251,7 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 					if s.counter.Increment() { // hit capacity
 						r = s.batchFunc(ctx, s.keys)
 					}
-				case <-time.After(s.options.Timeout):
+				case <-time.After(s.options.timeout):
 					r = s.batchFunc(ctx, s.keys)
 				}
 			}
@@ -246,6 +267,6 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 // ============================================== helpers =============================================
 
 // formatOptions configures default values for the loader options
-func formatOptions(opts *Options) {
-	opts.Timeout |= 6 * time.Millisecond
+func formatOptions(opts *options) {
+	opts.timeout = 6 * time.Millisecond
 }

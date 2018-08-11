@@ -110,14 +110,12 @@ func TestLoadNoTimeout(t *testing.T) {
 	key := PrimaryKey(1)
 	key2 := PrimaryKey(2)
 
-	opts := standard.Options{
-		/*
-			ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
-		*/
-		Timeout: TEST_TIMEOUT * 5,
-	}
+	/*
+		ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
+	*/
+	timeout := TEST_TIMEOUT * 5
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := standard.NewStandardStrategy(opts)(3, batch) // expects 3 load calls
+	strategy := standard.NewStandardStrategy(standard.WithTimeout(timeout))(3, batch) // expects 3 load calls
 
 	// invoke/assert
 	strategy.Load(context.Background(), key)           // --------- Load 		 - call 1
@@ -182,14 +180,12 @@ func TestLoadManyNoTimeout(t *testing.T) {
 	key2 := PrimaryKey(2)
 	key3 := PrimaryKey(3)
 
-	opts := standard.Options{
-		/*
-			ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
-		*/
-		Timeout: TEST_TIMEOUT * 5,
-	}
+	/*
+		ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
+	*/
+	timeout := TEST_TIMEOUT * 5
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := standard.NewStandardStrategy(opts)(3, batch) // expects 3 load calls
+	strategy := standard.NewStandardStrategy(standard.WithTimeout(timeout))(3, batch) // expects 3 load calls
 
 	// invoke/assert
 	strategy.LoadMany(context.Background(), key)                 // --------- LoadMany 		 - call 1
@@ -261,9 +257,8 @@ func TestLoadTimeout(t *testing.T) {
 	key := PrimaryKey(1)
 	key2 := PrimaryKey(2)
 
-	opts := standard.Options{}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := standard.NewStandardStrategy(opts)(3, batch) // expects 3 load calls
+	strategy := standard.NewStandardStrategy()(3, batch) // expects 3 load calls
 
 	// invoke/assert
 
@@ -347,9 +342,8 @@ func TestLoadManyTimeout(t *testing.T) {
 	key2 := PrimaryKey(2)
 	key3 := PrimaryKey(3)
 
-	opts := standard.Options{}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := standard.NewStandardStrategy(opts)(3, batch) // expects 3 load calls
+	strategy := standard.NewStandardStrategy()(3, batch) // expects 3 load calls
 
 	// invoke/assert
 

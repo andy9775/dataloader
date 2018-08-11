@@ -32,6 +32,9 @@ type Thunk func() Result
 // Calling ThunkMany will block until the result is returned from the batch function.
 type ThunkMany func() ResultMap
 
+// Option accepts the dataloader and sets an option on it.
+type Option func(*dataloader)
+
 // NewDataLoader returns a new DataLoader with a count capacity of `capacity`.
 // The capacity value determines when the batch loader function will execute.
 // The dataloader requires a strategy to execute and a cache strategy to use for
@@ -40,13 +43,28 @@ func NewDataLoader(
 	capacity int,
 	batch BatchFunction,
 	fn func(int /* capacity */, BatchFunction) Strategy,
-	cacheStrategy Cache,
-	tracer Tracer,
+	opts ...Option,
 ) DataLoader {
+
+	loader := dataloader{}
+
+	// set the options
+	for _, apply := range opts {
+		apply(&loader)
+	}
+
+	// default options
+	if loader.cache == nil {
+		loader.cache = NewNoOpCache()
+	}
+
+	if loader.tracer == nil {
+		loader.tracer = NewNoOpTracer()
+	}
 
 	// wrap the batch function and implement tracing around it
 	batchFunc := func(ogCtx context.Context, keys Keys) *ResultMap {
-		ctx, finish := tracer.Batch(ogCtx)
+		ctx, finish := loader.tracer.Batch(ogCtx)
 
 		r := batch(ctx, keys)
 
@@ -54,10 +72,24 @@ func NewDataLoader(
 		return r
 	}
 
-	return &dataloader{
-		strategy: fn(capacity, batchFunc),
-		cache:    cacheStrategy,
-		tracer:   tracer,
+	loader.strategy = fn(capacity, batchFunc)
+
+	return &loader
+}
+
+// ============================================= options setters =============================================
+
+// WithCache adds a cache strategy to the dataloader
+func WithCache(cache Cache) Option {
+	return func(l *dataloader) {
+		l.cache = cache
+	}
+}
+
+// WithTracer adds a tracer to the dataloader
+func WithTracer(tracer Tracer) Option {
+	return func(l *dataloader) {
+		l.tracer = tracer
 	}
 }
 

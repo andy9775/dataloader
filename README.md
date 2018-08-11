@@ -74,7 +74,7 @@ then returns the values for the keys it is attached to.
 > DataLoader is the basic interface for the library. It contains a provided
 > strategy and cache strategy.
 
-**`NewDataLoader(int, BatchFunction, func(int, BatchFunction) Strategy, Cache, Tracer) DataLoader`**<br>
+**`NewDataLoader(int, BatchFunction, func(int, BatchFunction) Strategy, ...Option) DataLoader`**<br>
 NewDataLoader returns a new instance of a DataLoader tracking to the capacity
 provided and using the provided execution and cache strategy. The second argument
 should return a strategy which accepts a capacity value and the BatchFunction
@@ -87,7 +87,16 @@ called returns the values for the provided keys. Load does not block callers.
 **`LoadMany(context.Context, ...Key) ThunkMany`**<br>
 Returns a ThunkMany for the specified keys. Internally LoadMany adds the
 provided keys to the keys array and returns a callback function which when
-called returns the values for the provided keys. LoadMany does not block callers.
+called returns the values for the provided keys. LoadMany does not block
+callers.
+
+The options include:
+
+**`WithCache(Cache) Option`**<br>
+WithCache sets the provided cache strategy on the loader
+
+**`WithTracer(Cache) Option`**<br>
+WithTracer sets the provided tracer on the loader
 
 #### Strategy
 
@@ -119,8 +128,8 @@ strategy for the provided capacity.
 
 The Options values include:
 
-- Timeout `time.Duration` - the time after which the batch function will be called if the
-  capacity is not reached. `Default: 6 milliseconds`
+**`WithTimeout(time.Duration) Option`**<br>
+WithTimeout sets the configured timeout on the strategy. `Default to 6 milliseconds`
 
 #### Standard Strategy
 
@@ -136,8 +145,8 @@ standard strategy for the provided capacity.
 
 The Options include:
 
-- Timeout `time.Duration` - the time after which the batch function will be
-  called if the capacity is not hit. `Default: 6 milliseconds`
+**`WithTimeout(time.Duration) Option`**<br>
+WithTimeout sets the configured timeout on the strategy. `Default to 6 milliseconds`
 
 #### Once Strategy
 
@@ -154,11 +163,9 @@ strategy ignoring the provided capacity value.
 
 The Options include:
 
-- InBackground `bool` - if true the batch function will be invoked in a
-  background go routine as soon as Load or LoadMany is called. If the batch
-  function executes in the background before calling Thunk/ThunkMany, calls
-  will not block and return data. Else calls to Thunk/ThunkMany will block until
-  the batch function executes.
+**`WithInBackground() Option`**<br>
+WithInBackground enables the batch function to execute in background on calls to
+Load/LoadMany
 
 #### ResultMap
 

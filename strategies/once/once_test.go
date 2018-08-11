@@ -70,9 +70,8 @@ func TestBatchLoadInForegroundCalled(t *testing.T) {
 	key := PrimaryKey(1)
 	result := dataloader.Result{Result: expectedResult, Err: nil}
 
-	opts := once.Options{InBackground: false}
 	batch := getBatchFunction(cb, result)
-	strategy := once.NewOnceStrategy(opts)(5, batch)
+	strategy := once.NewOnceStrategy()(5, batch)
 
 	// invoke/assert
 
@@ -96,9 +95,8 @@ func TestBatchLoadManyInForegroundCalled(t *testing.T) {
 	key := PrimaryKey(1)
 	result := dataloader.Result{Result: expectedResult, Err: nil}
 
-	opts := once.Options{InBackground: false}
 	batch := getBatchFunction(cb, result)
-	strategy := once.NewOnceStrategy(opts)(5, batch)
+	strategy := once.NewOnceStrategy()(5, batch)
 
 	// invoke/assert
 
@@ -136,9 +134,8 @@ func TestBatchLoadInBackgroundCalled(t *testing.T) {
 	key := PrimaryKey(1)
 	result := dataloader.Result{Result: expectedResult, Err: nil}
 
-	opts := once.Options{InBackground: true}
 	batch := getBatchFunction(cb, result)
-	strategy := once.NewOnceStrategy(opts)(5, batch)
+	strategy := once.NewOnceStrategy(once.WithInBackground())(5, batch)
 
 	// invoke/assert
 
@@ -172,9 +169,8 @@ func TestBatchLoadManyInBackgroundCalled(t *testing.T) {
 	key := PrimaryKey(1)
 	result := dataloader.Result{Result: expectedResult, Err: nil}
 
-	opts := once.Options{InBackground: true}
 	batch := getBatchFunction(cb, result)
-	strategy := once.NewOnceStrategy(opts)(5, batch)
+	strategy := once.NewOnceStrategy(once.WithInBackground())(5, batch)
 
 	// invoke/assert
 

@@ -11,9 +11,12 @@ import (
 )
 
 // Options contains the strategy configuration
-type Options struct {
-	Timeout time.Duration
+type options struct {
+	timeout time.Duration
 }
+
+// Option accepts the dataloader and sets an option on it.
+type Option func(*options)
 
 // go routine status values
 // Ensure that only one worker go routine is working to call the batch function
@@ -27,9 +30,16 @@ const (
 // The Standard Strategy, calls the batch function once when the keys array reaches
 // capacity then subsequent calls to `Load()` will call the batch function with
 // the individual keys.
-func NewStandardStrategy(opts Options) func(int, dataloader.BatchFunction) dataloader.Strategy {
+func NewStandardStrategy(opts ...Option) func(int, dataloader.BatchFunction) dataloader.Strategy {
 	return func(capacity int, batch dataloader.BatchFunction) dataloader.Strategy {
-		formatOptions(&opts)
+		// default options
+		o := options{}
+		formatOptions(&o)
+
+		// format options
+		for _, apply := range opts {
+			apply(&o)
+		}
 
 		return &standardStrategy{
 			batchFunc: batch,
@@ -39,12 +49,23 @@ func NewStandardStrategy(opts Options) func(int, dataloader.BatchFunction) datal
 			keyChan:         make(chan workerMessage, capacity),
 			closeChan:       make(chan struct{}),
 			goroutineStatus: notRunning,
-			options:         opts,
+			options:         o,
 
 			keys: dataloader.NewKeys(capacity),
 		}
 	}
 }
+
+// ============================================== option setters =============================================
+
+// WithTimeout sets the timeout value for the strategy
+func WithTimeout(t time.Duration) Option {
+	return func(o *options) {
+		o.timeout = t
+	}
+}
+
+// ===========================================================================================================
 
 type standardStrategy struct {
 	counter strategies.Counter
@@ -60,7 +81,7 @@ type standardStrategy struct {
 
 	goroutineStatus int
 
-	options Options
+	options options
 }
 
 type workerMessage struct {
@@ -178,7 +199,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 					if s.counter.Increment() { // hit capacity
 						r = s.batchFunc(ctx, s.keys)
 					}
-				case <-time.After(s.options.Timeout):
+				case <-time.After(s.options.timeout):
 					r = s.batchFunc(ctx, s.keys)
 				}
 			}
@@ -194,8 +215,8 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 // ============================================== helpers =============================================
 
 // formatOptions configures default values for the loader options
-func formatOptions(opts *Options) {
-	opts.Timeout |= 6 * time.Millisecond
+func formatOptions(opts *options) {
+	opts.timeout = 6 * time.Millisecond
 }
 
 // buildResultMap filters through the provided result map and returns an ResultMap

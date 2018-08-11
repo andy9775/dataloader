@@ -142,7 +142,7 @@ func TestLoadCacheHit(t *testing.T) {
 
 	batch := getBatchFunction(cb, result)
 	strategy := newMockStrategy()
-	loader := dataloader.NewDataLoader(1, batch, strategy, cache, dataloader.NewNoOpTracer())
+	loader := dataloader.NewDataLoader(1, batch, strategy, dataloader.WithCache(cache))
 
 	// invoke / assert
 
@@ -168,7 +168,7 @@ func TestLoadManyCacheHit(t *testing.T) {
 
 	batch := getBatchFunction(cb, result)
 	strategy := newMockStrategy()
-	loader := dataloader.NewDataLoader(1, batch, strategy, cache, dataloader.NewNoOpTracer())
+	loader := dataloader.NewDataLoader(1, batch, strategy, dataloader.WithCache(cache))
 
 	// invoke / assert
 
@@ -196,7 +196,7 @@ func TestLoadCacheMiss(t *testing.T) {
 
 	batch := getBatchFunction(cb, result)
 	strategy := newMockStrategy()
-	loader := dataloader.NewDataLoader(1, batch, strategy, cache, dataloader.NewNoOpTracer())
+	loader := dataloader.NewDataLoader(1, batch, strategy, dataloader.WithCache(cache))
 
 	// invoke / assert
 
@@ -217,7 +217,7 @@ func TestLoadManyCacheMiss(t *testing.T) {
 
 	batch := getBatchFunction(cb, result)
 	strategy := newMockStrategy()
-	loader := dataloader.NewDataLoader(1, batch, strategy, cache, dataloader.NewNoOpTracer())
+	loader := dataloader.NewDataLoader(1, batch, strategy, dataloader.WithCache(cache))
 
 	// invoke / assert
 
