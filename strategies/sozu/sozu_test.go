@@ -140,6 +140,15 @@ func TestLoadTimeoutTriggered(t *testing.T) {
 		"Expected batch function to return result",
 	)
 
+	// test double call to thunk
+	r = thunk()
+	assert.Equal(
+		t,
+		fmt.Sprintf("2_%s", expectedResult),
+		r.Result.(string),
+		"Expected batch function to return result",
+	)
+	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 }
 
 // TestLoadManyTimeoutTriggered ensures that the timeout function triggers the batch function
@@ -220,6 +229,16 @@ func TestLoadManyTimeoutTriggered(t *testing.T) {
 		r1.(dataloader.ResultMap).Length()+r2.(dataloader.ResultMap).Length(),
 		"Expected 3 total results from both thunkMany function",
 	)
+
+	// test double call to thunk
+	r2 = thunkMany()
+	assert.Equal(
+		t,
+		3,
+		r1.(dataloader.ResultMap).Length()+r2.(dataloader.ResultMap).Length(),
+		"Expected 3 total results from both thunkMany function",
+	)
+	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 }
 
 // ========================= test non-timeout =========================
@@ -291,6 +310,16 @@ func TestLoadTriggered(t *testing.T) {
 	)
 
 	assert.False(t, timedOut, "Expected function to not timeout")
+
+	// test double call to thunk
+	r1 = thunk()
+	assert.Equal(
+		t,
+		fmt.Sprintf("1_%s", expectedResult),
+		r1.Result.(string),
+		"Expected batch function to return on thunk()",
+	)
+	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 }
 
 // TestLoadManyTriggered asserts that load calls do not timeout and call the batch function after
@@ -361,6 +390,16 @@ func TestLoadManyTriggered(t *testing.T) {
 	)
 
 	assert.False(t, timedOut, "Expected function to not timeout")
+
+	// test double call to thunk
+	r1 = thunk() // don't block on second call
+	assert.Equal(
+		t,
+		fmt.Sprintf("1_%s", expectedResult),
+		r1.(dataloader.ResultMap).GetValue(key).Result,
+		"Expected batch function to return on thunk()",
+	)
+	assert.Equal(t, 1, callCount, "Batch function expected to be called once ")
 }
 
 // TestLoadBlocked calls thunk without using a wait group and expects to be blocked before getting data back.
@@ -408,6 +447,14 @@ func TestLoadBlocked(t *testing.T) {
 	strategy.LoadNoOp(context.Background())           // --------- LoadNoOp -  call 2
 
 	r := thunk() // block until batch function executes
+
+	assert.Equal(t, 1, callCount, "Batch function should have been called once")
+	assert.False(t, timedOut, "Batch function should not have timed out")
+	assert.Equal(t, 1, len(k), "Should have been called with one key")
+	assert.Equal(t, fmt.Sprintf("1_%s", expectedResult), r.Result.(string), "Expected result from thunk()")
+
+	// test double call to thunk
+	r = thunk() // don't block on second call
 
 	assert.Equal(t, 1, callCount, "Batch function should have been called once")
 	assert.False(t, timedOut, "Batch function should not have timed out")
@@ -462,6 +509,19 @@ func TestLoadManyBlocked(t *testing.T) {
 	strategy.LoadNoOp(context.Background())                         // --------- LoadNoOp -  call 2
 
 	r := thunkMany() // block until batch function executes
+
+	assert.Equal(t, 1, callCount, "Batch function should have been called once")
+	assert.False(t, timedOut, "Batch function should not have timed out")
+	assert.Equal(t, 2, len(k), "Should have been called with two keys")
+	assert.Equal(
+		t,
+		fmt.Sprintf("2_%s", expectedResult),
+		r.(dataloader.ResultMap).GetValue(key2).Result.(string),
+		"Expected result from thunkMany()",
+	)
+
+	// test double call to thunk
+	r = thunkMany() // don't block on second call
 
 	assert.Equal(t, 1, callCount, "Batch function should have been called once")
 	assert.False(t, timedOut, "Batch function should not have timed out")

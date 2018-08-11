@@ -137,6 +137,16 @@ func TestLoadNoTimeout(t *testing.T) {
 	)
 
 	assert.False(t, timedOut, "Expected loader not to timeout")
+
+	// test double call to thunk
+	r = thunk()
+	assert.Equal(
+		t,
+		fmt.Sprintf("2_%s", expectedResult),
+		r.Result.(string),
+		"Expected result from thunk()",
+	)
+	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 }
 
 // TestLoadManyNoTimeout tests calling the load function without timing out
@@ -207,6 +217,16 @@ func TestLoadManyNoTimeout(t *testing.T) {
 	)
 
 	assert.False(t, timedOut, "Expected loader not to timeout")
+
+	// test double call to thunk
+	r = thunk()
+	assert.Equal(
+		t,
+		fmt.Sprintf("2_%s", expectedResult),
+		r.(dataloader.ResultMap).GetValue(key2).Result.(string),
+		"Expected result from thunk()",
+	)
+	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 }
 
 // ================================================= timeout =================================================
@@ -284,6 +304,17 @@ func TestLoadTimeout(t *testing.T) {
 	// don't wait below - callback is not executing in background go routine - ensure wg doesn't go negative
 	wg.Add(1)
 	thunk := strategy.Load(context.Background(), key) // --------- Load 		 - call 3
+	r = thunk()
+
+	// called once in go routine after timeout, once in thunk
+	assert.Equal(t, 2, callCount, "Batch function expected to be called twice")
+	assert.Equal(t,
+		fmt.Sprintf("1_%s", expectedResult),
+		r.Result.(string),
+		"Expected result from thunk",
+	)
+
+	// test double call to thunk
 	r = thunk()
 
 	// called once in go routine after timeout, once in thunk
@@ -379,4 +410,15 @@ func TestLoadManyTimeout(t *testing.T) {
 		"Expected result from thunkMany",
 	)
 	assert.Equal(t, 2, len(k), "Expected to be called with 2 keys") // second function call
+
+	// test double call to thunk
+	r = thunkMany()
+
+	// called once in go routine after timeout, once in thunkMany
+	assert.Equal(t, 2, callCount, "Batch function expected to be called twice")
+	assert.Equal(t,
+		fmt.Sprintf("3_%s", expectedResult),
+		r.(dataloader.ResultMap).GetValue(key3).Result.(string),
+		"Expected result from thunkMany",
+	)
 }

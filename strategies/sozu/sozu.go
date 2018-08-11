@@ -114,6 +114,7 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 	message := workerMessage{k: []dataloader.Key{key}, resultChan: resultChan}
 	s.keyChan <- message // pass key to the worker go routine
 
+	var result dataloader.Result
 	/*
 		TODO: clean up
 		If a worker go routine is in the process of calling the batch function and another
@@ -130,19 +131,25 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 		and process it.
 	*/
 	return func() dataloader.Result {
+		if result.Result != nil || result.Err != nil {
+			return result
+		}
+
 		for {
 			/*
 				dual select statements allow prioritization of cases in situations where both channels have data
 			*/
 			select {
-			case result := <-resultChan:
-				return result.GetValue(key)
+			case r := <-resultChan:
+				result = r.GetValue(key)
+				return result
 			default:
 			}
 
 			select {
-			case result := <-resultChan:
-				return result.GetValue(key)
+			case r := <-resultChan:
+				result = r.GetValue(key)
+				return result
 			case <-s.closeChan:
 				/*
 					Current worker closed, therefore no readers reading off of the key chan to get
@@ -167,8 +174,14 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 	message := workerMessage{k: keyArr, resultChan: resultChan}
 	s.keyChan <- message
 
+	var resultMap dataloader.ResultMap
+
 	// See comments in Load method above
 	return func() dataloader.ResultMap {
+		if resultMap != nil {
+			return resultMap
+		}
+
 		for {
 			/*
 				dual select statements allow prioritization of cases in situations where both channels have data
@@ -181,7 +194,8 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 					result.Set(k.String(), r.GetValue(k))
 				}
 
-				return result
+				resultMap = result
+				return resultMap
 			default:
 			}
 
@@ -193,7 +207,8 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 					result.Set(k.String(), r.GetValue(k))
 				}
 
-				return result
+				resultMap = result
+				return resultMap
 			case <-s.closeChan:
 				s.startWorker(ctx)
 			}

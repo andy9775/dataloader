@@ -99,21 +99,30 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 	message := workerMessage{k: []dataloader.Key{key}, resultChan: resultChan}
 	s.keyChan <- message // pass key to the worker go routine (buffered channel)
 
+	var result dataloader.Result
+
 	return func() dataloader.Result {
+		if result.Result != nil || result.Err != nil {
+			return result
+		}
+
 		/*
 		 dual select statements allow prioritization of cases in situations where both channels have data
 		*/
 		select {
-		case result := <-resultChan:
-			return result.GetValue(key)
+		case r := <-resultChan:
+			result = r.GetValue(key)
+			return result
 		default:
 		}
 
 		select {
-		case result := <-resultChan:
-			return result.GetValue(key)
+		case r := <-resultChan:
+			result = r.GetValue(key)
+			return result
 		case <-s.closeChan:
-			return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
+			result = (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
+			return result
 		}
 	}
 }
@@ -128,22 +137,31 @@ func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Ke
 	message := workerMessage{k: keyArr, resultChan: resultChan}
 	s.keyChan <- message
 
+	var resultMap dataloader.ResultMap
+
 	return func() dataloader.ResultMap {
+		if resultMap != nil {
+			return resultMap
+		}
+
 		/*
 			dual select statements allow prioritization of cases in situations where both channels have data
 		*/
 		select {
 		case r := <-resultChan:
-			return buildResultMap(keyArr, r)
+			resultMap = buildResultMap(keyArr, r)
+			return resultMap
 		default:
 		}
 
 		select {
 		case r := <-resultChan:
-			return buildResultMap(keyArr, r)
+			resultMap = buildResultMap(keyArr, r)
+			return resultMap
 		case <-s.closeChan: // batch the keys if closed
 			r := *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
-			return buildResultMap(keyArr, r)
+			resultMap = buildResultMap(keyArr, r)
+			return resultMap
 		}
 	}
 }

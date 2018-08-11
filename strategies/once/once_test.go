@@ -81,6 +81,10 @@ func TestBatchLoadInForegroundCalled(t *testing.T) {
 	r := thunk()
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunk()")
 	assert.Equal(t, expectedResult, r.Result.(string), "Expected result from batch function")
+
+	r = thunk()
+	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunk()")
+	assert.Equal(t, expectedResult, r.Result.(string), "Expected result from batch function")
 }
 
 // TestBatchInForegroundCalled asserts that the once strategy will call the batch function only
@@ -104,6 +108,10 @@ func TestBatchLoadManyInForegroundCalled(t *testing.T) {
 	assert.Equal(t, 0, callCount, "Batch function not expected to be called on LoadMany()")
 
 	r := thunkMany()
+	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunkMany()")
+	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
+
+	r = thunkMany()
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunkMany()")
 	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
 }
@@ -148,6 +156,9 @@ func TestBatchLoadInBackgroundCalled(t *testing.T) {
 
 	r := thunk()
 	assert.Equal(t, expectedResult, r.Result.(string), "Expected value from batch function")
+	r = thunk()
+	assert.Equal(t, expectedResult, r.Result.(string), "Expected value from batch function")
+	assert.Equal(t, 1, callCount, "Batch function expected to be called on Load() in background")
 }
 
 // TestBatchLoadManyInBackgroundCalled asserts that the once strategy will call the batch function
@@ -183,4 +194,7 @@ func TestBatchLoadManyInBackgroundCalled(t *testing.T) {
 
 	r := thunkMany()
 	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
+	r = thunkMany()
+	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
+	assert.Equal(t, 1, callCount, "Batch function expected to be called on LoadMany()")
 }

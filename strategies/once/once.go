@@ -63,6 +63,8 @@ func WithInBackground() Option {
 // Load returns a Thunk which either calls the batch function when invoked or waits for a result from a
 // background go routine (blocking if no data is available).
 func (s *onceStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Thunk {
+	var result dataloader.Result
+
 	if s.options.inBackground {
 		resultChan := make(chan dataloader.Result)
 
@@ -72,20 +74,31 @@ func (s *onceStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 
 		// call batch in background and block util it returns
 		return func() dataloader.Result {
-			return <-resultChan
+			if result.Result != nil || result.Err != nil {
+				return result
+			}
+
+			result = <-resultChan
+			return result
 		}
 	}
 
 	// call batch when thunk is called
 	return func() dataloader.Result {
-		return (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
-	}
+		if result.Result != nil || result.Err != nil {
+			return result
+		}
 
+		result = (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
+		return result
+	}
 }
 
 // LoadMany returns a ThunkMany which either calls the batch function when invoked or waits for a result from
 // a background go routine (blocking if no data is available).
 func (s *onceStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ThunkMany {
+	var result dataloader.ResultMap
+
 	if s.options.inBackground {
 		resultChan := make(chan dataloader.ResultMap)
 
@@ -95,13 +108,23 @@ func (s *onceStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 
 		// call batch in background and block util it returnsS
 		return func() dataloader.ResultMap {
-			return <-resultChan
+			if result != nil {
+				return result
+			}
+
+			result = <-resultChan
+			return result
 		}
 	}
 
 	// call batch when thunk is called
 	return func() dataloader.ResultMap {
-		return *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
+		if result != nil {
+			return result
+		}
+
+		result = *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
+		return result
 	}
 
 }
