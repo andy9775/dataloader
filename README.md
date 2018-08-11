@@ -74,10 +74,10 @@ then returns the values for the keys it is attached to.
 > DataLoader is the basic interface for the library. It contains a provided
 > strategy and cache strategy.
 
-**`NewDataLoader(int, func(int) Strategy, Cache) DataLoader`**<br>
+**`NewDataLoader(int, BatchFunction, func(int, BatchFunction) Strategy, Cache, Tracer) DataLoader`**<br>
 NewDataLoader returns a new instance of a DataLoader tracking to the capacity
 provided and using the provided execution and cache strategy. The second argument
-should return a strategy which accepts a capacity value
+should return a strategy which accepts a capacity value and the BatchFunction
 
 **`Load(context.Context, Key) Thunk`**<br>
 Returns a Thunk for the specified keys. Internally Load adds the
@@ -113,7 +113,7 @@ increment the internal loads counter.
 > LoadMany before performing another long running process will allow the batch
 > function to run concurrently to any other operations.
 
-**`NewSozuStrategy(BatchFunction, Options) func(int) Strategy`**<br>
+**`NewSozuStrategy(Options) func(int, BatchFunction) Strategy`**<br>
 NewSozuStrategy returns a function which returns a new instance of a sozu
 strategy for the provided capacity.
 
@@ -130,7 +130,7 @@ The Options values include:
 > another long running process will allow the batch function to run concurrently
 > to any other operations.
 
-**`NewStandardStrategy(BatchFunction, Options) func(int) Strategy`**<br>
+**`NewStandardStrategy(Options) func(int, BatchFunction) Strategy`**<br>
 NewStandardStrategy returns a function which returns a new instance of the
 standard strategy for the provided capacity.
 
@@ -148,7 +148,7 @@ The Options include:
 > consistent API across an application and for automatically performing data
 > queries in a background go routine.
 
-**`NewOnceStrategy(BatchFunction, Options) func(int) Strategy`**<br>
+**`NewOnceStrategy(Options) func(int, BatchFunction) Strategy`**<br>
 NewOnceStrategy returns a functions which returns an instance of the once
 strategy ignoring the provided capacity value.
 
@@ -259,7 +259,46 @@ provided keys.
 Delete removes the value for the provided key and returns true if successful.
 
 **`ClearAll(context.Context) bool`**<br>
-ClearAll removes all values from the cache and returns true if successfully cleared
+ClearAll removes all values from the cache and returns true if successfully
+cleared
+
+#### Tracer
+
+> Tracer provides an interface used by the DataLoader for tracing requests
+> through the application. Tracing occurs on calls to `Load`, `LoadMany` and
+> when the `BatchFunction` gets called.
+
+**`NewNoOpTracer() Tracer`**<br>
+NewNoOpTracer returns an instance of a blank tracer that does not output anything.
+
+**`NewOpenTracingTracer() Tracer`**<br>
+NewOpenTracingTracer returns an instance of a tracer which conforms to the open
+tracing standard.
+
+**`Load(context.Context, Key) (context.Context, LoadFinishFunc)`**<br>
+Load performs tracing around calls to the `Load` function. It returns a context
+with tracing information and a finish function which ends the tracing.
+
+**`LoadMany(context.Context, Key) (context.Context, LoadManyFinishFunc)`**<br>
+LoadMany performs tracing around calls to the `LoadMany` function. It returns a
+context with tracing information and a finish function which ends the tracing.
+
+**`Batch(context.Context) (context.Context, BatchFinishFunc)`**<br>
+Batch performs tracing around calls to the `Batch` function. It returns a context
+with the tracing information attached to it and a finish function which ends the
+tracing.
+
+**`LoadFinishFunc(Result)`**<br>
+LoadFinishFunc ends tracing started by `Load` and gets passed the resolved
+result for the queried key.
+
+**`LoadManyFinishFunc(ResultMap)`**<br>
+LoadFinishFunc ends tracing started by `LoadMany` and gets passed the resolved
+result map for the queried keys.
+
+**`BatchFinishFunc(ResultMap)`**<br>
+BatchFinishFunc ends tracing started by `Batch` and gets passed the resolved
+result map for the key or keys.
 
 #### Counter
 
@@ -348,4 +387,4 @@ the actual go routine.
 - [x] LoadMany - ability to call load with multiple keys
 - [ ] Examples
 - [ ] Logging
-- [ ] Tracing
+- [x] Tracing

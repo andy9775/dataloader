@@ -92,8 +92,8 @@ type mockStrategy struct {
 	batchFunc dataloader.BatchFunction
 }
 
-func newMockStrategy(batch dataloader.BatchFunction) func(int) dataloader.Strategy {
-	return func(capacity int) dataloader.Strategy {
+func newMockStrategy() func(int, dataloader.BatchFunction) dataloader.Strategy {
+	return func(capacity int, batch dataloader.BatchFunction) dataloader.Strategy {
 		return &mockStrategy{
 			batchFunc: batch,
 		}
@@ -141,8 +141,8 @@ func TestLoadCacheHit(t *testing.T) {
 	cache.SetResult(context.Background(), key, expectedResult)
 
 	batch := getBatchFunction(cb, result)
-	strategy := newMockStrategy(batch)
-	loader := dataloader.NewDataLoader(1, strategy, cache)
+	strategy := newMockStrategy()
+	loader := dataloader.NewDataLoader(1, batch, strategy, cache, dataloader.NewNoOpTracer())
 
 	// invoke / assert
 
@@ -167,8 +167,8 @@ func TestLoadManyCacheHit(t *testing.T) {
 	cache.SetResult(context.Background(), key2, expectedResult2)
 
 	batch := getBatchFunction(cb, result)
-	strategy := newMockStrategy(batch)
-	loader := dataloader.NewDataLoader(1, strategy, cache)
+	strategy := newMockStrategy()
+	loader := dataloader.NewDataLoader(1, batch, strategy, cache, dataloader.NewNoOpTracer())
 
 	// invoke / assert
 
@@ -195,8 +195,8 @@ func TestLoadCacheMiss(t *testing.T) {
 	key := PrimaryKey(1)
 
 	batch := getBatchFunction(cb, result)
-	strategy := newMockStrategy(batch)
-	loader := dataloader.NewDataLoader(1, strategy, cache)
+	strategy := newMockStrategy()
+	loader := dataloader.NewDataLoader(1, batch, strategy, cache, dataloader.NewNoOpTracer())
 
 	// invoke / assert
 
@@ -216,8 +216,8 @@ func TestLoadManyCacheMiss(t *testing.T) {
 	key := PrimaryKey(1)
 
 	batch := getBatchFunction(cb, result)
-	strategy := newMockStrategy(batch)
-	loader := dataloader.NewDataLoader(1, strategy, cache)
+	strategy := newMockStrategy()
+	loader := dataloader.NewDataLoader(1, batch, strategy, cache, dataloader.NewNoOpTracer())
 
 	// invoke / assert
 

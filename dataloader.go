@@ -38,13 +38,26 @@ type ThunkMany func() ResultMap
 // storing data.
 func NewDataLoader(
 	capacity int,
-	fn func(int /* capacity */) Strategy,
+	batch BatchFunction,
+	fn func(int /* capacity */, BatchFunction) Strategy,
 	cacheStrategy Cache,
+	tracer Tracer,
 ) DataLoader {
 
+	// wrap the batch function and implement tracing around it
+	batchFunc := func(ogCtx context.Context, keys Keys) *ResultMap {
+		ctx, finish := tracer.Batch(ogCtx)
+
+		r := batch(ctx, keys)
+
+		finish(*r)
+		return r
+	}
+
 	return &dataloader{
-		strategy: fn(capacity),
+		strategy: fn(capacity, batchFunc),
 		cache:    cacheStrategy,
+		tracer:   tracer,
 	}
 }
 
@@ -53,15 +66,20 @@ func NewDataLoader(
 type dataloader struct {
 	strategy Strategy
 	cache    Cache
+	tracer   Tracer
 }
 
 // Load returns the Thunk for the specified Key by calling the Load method on the provided strategy.
 // Load method references the cache to check if a result already exists for the key. If a result exists,
 // it returns a Thunk which simply returns the cached result (non-blocking).
-func (d *dataloader) Load(ctx context.Context, key Key) Thunk {
+func (d *dataloader) Load(ogCtx context.Context, key Key) Thunk {
+	ctx, finish := d.tracer.Load(ogCtx, key)
+
 	if r, ok := d.cache.GetResult(ctx, key); ok {
 		d.strategy.LoadNoOp(ctx)
 		return func() Result {
+			finish(r)
+
 			return r
 		}
 	}
@@ -71,6 +89,8 @@ func (d *dataloader) Load(ctx context.Context, key Key) Thunk {
 		result := thunk()
 		d.cache.SetResult(ctx, key, result)
 
+		finish(result)
+
 		return result
 	}
 }
@@ -79,10 +99,14 @@ func (d *dataloader) Load(ctx context.Context, key Key) Thunk {
 // strategy.
 // LoadMany references the cache and returns a ThunkMany which returns the cached values when called
 // (non-blocking).
-func (d *dataloader) LoadMany(ctx context.Context, keyArr ...Key) ThunkMany {
+func (d *dataloader) LoadMany(ogCtx context.Context, keyArr ...Key) ThunkMany {
+	ctx, finish := d.tracer.LoadMany(ogCtx, keyArr)
+
 	if r, ok := d.cache.GetResultMap(ctx, keyArr...); ok {
 		d.strategy.LoadNoOp(ctx)
 		return func() ResultMap {
+			finish(r)
+
 			return r
 		}
 	}
@@ -91,6 +115,8 @@ func (d *dataloader) LoadMany(ctx context.Context, keyArr ...Key) ThunkMany {
 	return func() ResultMap {
 		result := thunkMany()
 		d.cache.SetResultMap(ctx, result)
+
+		finish(result)
 
 		return result
 	}

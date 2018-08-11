@@ -72,7 +72,7 @@ func TestBatchLoadInForegroundCalled(t *testing.T) {
 
 	opts := once.Options{InBackground: false}
 	batch := getBatchFunction(cb, result)
-	strategy := once.NewOnceStrategy(batch, opts)(5)
+	strategy := once.NewOnceStrategy(opts)(5, batch)
 
 	// invoke/assert
 
@@ -98,7 +98,7 @@ func TestBatchLoadManyInForegroundCalled(t *testing.T) {
 
 	opts := once.Options{InBackground: false}
 	batch := getBatchFunction(cb, result)
-	strategy := once.NewOnceStrategy(batch, opts)(5)
+	strategy := once.NewOnceStrategy(opts)(5, batch)
 
 	// invoke/assert
 
@@ -138,7 +138,7 @@ func TestBatchLoadInBackgroundCalled(t *testing.T) {
 
 	opts := once.Options{InBackground: true}
 	batch := getBatchFunction(cb, result)
-	strategy := once.NewOnceStrategy(batch, opts)(5)
+	strategy := once.NewOnceStrategy(opts)(5, batch)
 
 	// invoke/assert
 
@@ -174,7 +174,7 @@ func TestBatchLoadManyInBackgroundCalled(t *testing.T) {
 
 	opts := once.Options{InBackground: true}
 	batch := getBatchFunction(cb, result)
-	strategy := once.NewOnceStrategy(batch, opts)(5)
+	strategy := once.NewOnceStrategy(opts)(5, batch)
 
 	// invoke/assert
 

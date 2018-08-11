@@ -27,8 +27,8 @@ const (
 // The Standard Strategy, calls the batch function once when the keys array reaches
 // capacity then subsequent calls to `Load()` will call the batch function with
 // the individual keys.
-func NewStandardStrategy(batch dataloader.BatchFunction, opts Options) func(int) dataloader.Strategy {
-	return func(capacity int) dataloader.Strategy {
+func NewStandardStrategy(opts Options) func(int, dataloader.BatchFunction) dataloader.Strategy {
+	return func(capacity int, batch dataloader.BatchFunction) dataloader.Strategy {
 		formatOptions(&opts)
 
 		return &standardStrategy{

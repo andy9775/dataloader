@@ -24,8 +24,8 @@ type Options struct {
 // The Once strategy calls the batch function for each call to the Thunk if InBackground is false.
 // Otherwise it runs the batch function in a background go routine and blocks calls to Thunk or
 // ThunkMany if the result is not yet fetched.
-func NewOnceStrategy(batch dataloader.BatchFunction, opts Options) func(int) dataloader.Strategy {
-	return func(_ int) dataloader.Strategy {
+func NewOnceStrategy(opts Options) func(int, dataloader.BatchFunction) dataloader.Strategy {
+	return func(_ int, batch dataloader.BatchFunction) dataloader.Strategy {
 		return &onceStrategy{
 			batchFunc: batch,
 			options:   opts,

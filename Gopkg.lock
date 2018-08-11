@@ -3,12 +3,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/bluele/go-timecop"
-  packages = ["."]
-  revision = "f599da2cddda2745c1da23fdfa992c7525018f26"
-
-[[projects]]
-  branch = "master"
   name = "github.com/bouk/monkey"
   packages = ["."]
   revision = "5df1f207ff77e025801505ae4d903133a0b4353f"
@@ -18,6 +12,15 @@
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/opentracing/opentracing-go"
+  packages = [
+    ".",
+    "log"
+  ]
+  revision = "1949ddbfd147afd4d964a9f00b24eb291e0e7c38"
+  version = "v1.0.2"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -31,9 +34,15 @@
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
 
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "f9ce57c11b242f0f1599cf25c89d8cb02c45295a"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "38ab73ca17eaed324f989af4a3059b0731b50864d07da87277d34af0b3bb3256"
+  inputs-digest = "d78f8f372910678626235f173c46d9ce320a5f633783062f51d863a043142b21"
   solver-name = "gps-cdcl"
   solver-version = 1

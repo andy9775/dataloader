@@ -115,7 +115,7 @@ func TestLoadTimeoutTriggered(t *testing.T) {
 
 	opts := sozu.Options{}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(batch, opts)(10) // expects 10 load calls
+	strategy := sozu.NewSozuStrategy(opts)(10, batch) // expects 10 load calls
 
 	// invoke/assert
 
@@ -189,7 +189,7 @@ func TestLoadManyTimeoutTriggered(t *testing.T) {
 
 	opts := sozu.Options{}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(batch, opts)(10) // expected 10 load calls
+	strategy := sozu.NewSozuStrategy(opts)(10, batch) // expected 10 load calls
 
 	// invoke/assert
 
@@ -272,7 +272,7 @@ func TestLoadTriggered(t *testing.T) {
 		Timeout: TEST_TIMEOUT * 5,
 	}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(batch, opts)(2) // expected 2 load calls
+	strategy := sozu.NewSozuStrategy(opts)(2, batch) // expected 2 load calls
 
 	// invoke/assert
 
@@ -344,7 +344,7 @@ func TestLoadManyTriggered(t *testing.T) {
 		Timeout: TEST_TIMEOUT * 5,
 	}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(batch, opts)(2) // expected 2 load calls
+	strategy := sozu.NewSozuStrategy(opts)(2, batch) // expected 2 load calls
 
 	// invoke/assert
 
@@ -407,7 +407,7 @@ func TestLoadBlocked(t *testing.T) {
 		Timeout: TEST_TIMEOUT * 5,
 	}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(batch, opts)(2) // expected 2 load calls
+	strategy := sozu.NewSozuStrategy(opts)(2, batch) // expected 2 load calls
 
 	// invoke/assert
 
@@ -463,7 +463,7 @@ func TestLoadManyBlocked(t *testing.T) {
 		Timeout: TEST_TIMEOUT * 5,
 	}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := sozu.NewSozuStrategy(batch, opts)(2) // expected 2 load calls
+	strategy := sozu.NewSozuStrategy(opts)(2, batch) // expected 2 load calls
 
 	// invoke/assert
 

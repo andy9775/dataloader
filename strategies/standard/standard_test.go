@@ -117,7 +117,7 @@ func TestLoadNoTimeout(t *testing.T) {
 		Timeout: TEST_TIMEOUT * 5,
 	}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := standard.NewStandardStrategy(batch, opts)(3) // expects 3 load calls
+	strategy := standard.NewStandardStrategy(opts)(3, batch) // expects 3 load calls
 
 	// invoke/assert
 	strategy.Load(context.Background(), key)           // --------- Load 		 - call 1
@@ -189,7 +189,7 @@ func TestLoadManyNoTimeout(t *testing.T) {
 		Timeout: TEST_TIMEOUT * 5,
 	}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := standard.NewStandardStrategy(batch, opts)(3) // expects 3 load calls
+	strategy := standard.NewStandardStrategy(opts)(3, batch) // expects 3 load calls
 
 	// invoke/assert
 	strategy.LoadMany(context.Background(), key)                 // --------- LoadMany 		 - call 1
@@ -263,7 +263,7 @@ func TestLoadTimeout(t *testing.T) {
 
 	opts := standard.Options{}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := standard.NewStandardStrategy(batch, opts)(3) // expects 3 load calls
+	strategy := standard.NewStandardStrategy(opts)(3, batch) // expects 3 load calls
 
 	// invoke/assert
 
@@ -349,7 +349,7 @@ func TestLoadManyTimeout(t *testing.T) {
 
 	opts := standard.Options{}
 	batch := getBatchFunction(cb, expectedResult)
-	strategy := standard.NewStandardStrategy(batch, opts)(3) // expects 3 load calls
+	strategy := standard.NewStandardStrategy(opts)(3, batch) // expects 3 load calls
 
 	// invoke/assert
 
