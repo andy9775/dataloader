@@ -283,5 +283,5 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 
 // formatOptions configures default values for the loader options
 func formatOptions(opts *options) {
-	opts.timeout = 6 * time.Millisecond
+	opts.timeout = 16 * time.Millisecond
 }

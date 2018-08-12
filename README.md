@@ -129,7 +129,7 @@ strategy for the provided capacity.
 The Options values include:
 
 **`WithTimeout(time.Duration) Option`**<br>
-WithTimeout sets the configured timeout on the strategy. `Default to 6 milliseconds`
+WithTimeout sets the configured timeout on the strategy. `Default to 16 milliseconds`
 
 #### Standard Strategy
 
@@ -146,7 +146,7 @@ standard strategy for the provided capacity.
 The Options include:
 
 **`WithTimeout(time.Duration) Option`**<br>
-WithTimeout sets the configured timeout on the strategy. `Default to 6 milliseconds`
+WithTimeout sets the configured timeout on the strategy. `Default to 16 milliseconds`
 
 #### Once Strategy
 
@@ -338,7 +338,7 @@ The standard strategy initially calls the batch function when one of two
 conditions are met:
 
 1.  The number of calls the Load or LoadMany equals the capacity of the loader
-2.  The timeout set has been reached (default to 6 milliseconds)
+2.  The timeout set has been reached (default to 16 milliseconds)
 
 Subsequent calls to `Load()` or `LoadMany()` will execute the batch function for
 each caller.
@@ -354,13 +354,13 @@ The sozu strategy initially calls the batch function when one of two conditions
 are met:
 
 1.  The number of calls the Load or LoadMany equals the capacity of the loader
-2.  The timeout set has been reached (default to 6 milliseconds)
+2.  The timeout set has been reached (default to 16 milliseconds)
 
 Subsequent calls to `Load()` or `LoadMany()` will call the batch function when
 one of two conditions are met:
 
 1.  The number of calls the Load or LoadMany equals the capacity of the loader
-2.  The timeout set has been reached (default to 6 milliseconds)
+2.  The timeout set has been reached (default to 16 milliseconds)
 
 The sozu strategy is useful for instance when known calls to load will be called
 in a defined and equal group. For instance, the initial call can be to resolve
