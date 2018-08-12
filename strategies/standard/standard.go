@@ -107,7 +107,12 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 		}
 
 		/*
-		 dual select statements allow prioritization of cases in situations where both channels have data
+			Dual select statements allow prioritization of cases in situations where both channels have data.
+			In instances where the first select goes to the default case (no message), but before going to the
+			second select data is placed the resultChan and the closeChan is closed (data on both) the second
+			select block will either resolve the first or second case (50/50). Although highly unlikely, in this
+			case the batch function will be executed (50% of the time) in the go routine even though there is
+			data available for the keys
 		*/
 		select {
 		case r := <-resultChan:
@@ -145,7 +150,7 @@ func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Ke
 		}
 
 		/*
-			dual select statements allow prioritization of cases in situations where both channels have data
+			See comments in Load method RE: dual select statements
 		*/
 		select {
 		case r := <-resultChan:

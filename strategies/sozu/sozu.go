@@ -137,7 +137,15 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 
 		for {
 			/*
-				dual select statements allow prioritization of cases in situations where both channels have data
+				Dual select statements allow prioritization of cases in situations where both channels have data.
+				In instances where the first select goes to the default case (no message), but before going to the
+				second select data is placed the resultChan and the closeChan is closed (data on both) the second
+				select block will either resolve the first or second case (50/50). In this case it is acceptable as
+				after starting the worker, it loops back around and reads off of the result chan (first select) and
+				returns. Hence the caller isn't blocked waiting for the worker to execute, and the stale worker simply
+				executes the batch function after the timeout duration and exists. While highly unlikely, checking if
+				the keys array is empty in the batch function will eliminate the execution of any rogue sql queries or
+				network requests.
 			*/
 			select {
 			case r := <-resultChan:
@@ -176,7 +184,7 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 
 	var resultMap dataloader.ResultMap
 
-	// See comments in Load method above
+	// See comments in Load method RE: for loop
 	return func() dataloader.ResultMap {
 		if resultMap != nil {
 			return resultMap
@@ -184,7 +192,7 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 
 		for {
 			/*
-				dual select statements allow prioritization of cases in situations where both channels have data
+				see comments in the Load method RE: dual select statements
 			*/
 			select {
 			case r := <-resultChan:
