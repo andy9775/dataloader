@@ -59,7 +59,9 @@ type openTracer struct{}
 
 func (*openTracer) Load(ctx context.Context, key Key) (context.Context, LoadFinishFunc) {
 	span, spanCtx := opentracing.StartSpanFromContext(ctx, "Dataloader: load")
-	span.SetTag("dataloader.key", key.String())
+	if key != nil {
+		span.SetTag("dataloader.key", key.String())
+	}
 
 	return spanCtx, func(Result) { span.Finish() }
 }
