@@ -61,13 +61,15 @@ func WithInBackground() Option {
 // ===========================================================================================================
 
 // Load returns a Thunk which either calls the batch function when invoked or waits for a result from a
-// background go routine (blocking if no data is available).
+// background go routine (blocking if no data is available). Note that if the strategy is configured to
+// run in the background, calling Load again will spin up another background go routine.
 func (s *onceStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Thunk {
 	var result dataloader.Result
 
 	if s.options.inBackground {
 		resultChan := make(chan dataloader.Result)
 
+		// don't check if result is nil before starting in case a new key is passed in
 		go func() {
 			resultChan <- (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
 		}()
@@ -95,13 +97,15 @@ func (s *onceStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 }
 
 // LoadMany returns a ThunkMany which either calls the batch function when invoked or waits for a result from
-// a background go routine (blocking if no data is available).
+// a background go routine (blocking if no data is available). Note that calling load many again if configured
+// to run in the background will cause the background worker to execute once more.
 func (s *onceStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) dataloader.ThunkMany {
 	var result dataloader.ResultMap
 
 	if s.options.inBackground {
 		resultChan := make(chan dataloader.ResultMap)
 
+		// don't check if result is nil before starting in case a new key is passed in
 		go func() {
 			resultChan <- *s.batchFunc(ctx, dataloader.NewKeysWith(keyArr...))
 		}()
