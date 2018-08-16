@@ -2,6 +2,8 @@ package dataloader
 
 import (
 	"context"
+
+	"github.com/go-log/log"
 )
 
 // DataLoader is the identifying interface for the dataloader.
@@ -62,6 +64,10 @@ func NewDataLoader(
 		loader.tracer = NewNoOpTracer()
 	}
 
+	if loader.logger == nil {
+		loader.logger = log.DefaultLogger // no op logger
+	}
+
 	// wrap the batch function and implement tracing around it
 	batchFunc := func(ogCtx context.Context, keys Keys) *ResultMap {
 		ctx, finish := loader.tracer.Batch(ogCtx)
@@ -93,12 +99,20 @@ func WithTracer(tracer Tracer) Option {
 	}
 }
 
+// WithLogger adds a logger to the dataloader. The default is a no op logger
+func WithLogger(logger log.Logger) Option {
+	return func(l *dataloader) {
+		l.logger = logger
+	}
+}
+
 // ================================================================================================
 
 type dataloader struct {
 	strategy Strategy
 	cache    Cache
 	tracer   Tracer
+	logger   log.Logger
 }
 
 // Load returns the Thunk for the specified Key by calling the Load method on the provided strategy.
@@ -108,6 +122,7 @@ func (d *dataloader) Load(ogCtx context.Context, key Key) Thunk {
 	ctx, finish := d.tracer.Load(ogCtx, key)
 
 	if r, ok := d.cache.GetResult(ctx, key); ok {
+		d.logger.Logf("cache hit for: ", key)
 		d.strategy.LoadNoOp(ctx)
 		return func() Result {
 			finish(r)
@@ -135,6 +150,7 @@ func (d *dataloader) LoadMany(ogCtx context.Context, keyArr ...Key) ThunkMany {
 	ctx, finish := d.tracer.LoadMany(ogCtx, keyArr)
 
 	if r, ok := d.cache.GetResultMap(ctx, keyArr...); ok {
+		d.logger.Logf("cache hit for: ", keyArr)
 		d.strategy.LoadNoOp(ctx)
 		return func() ResultMap {
 			finish(r)

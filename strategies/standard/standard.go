@@ -8,11 +8,14 @@ import (
 	"github.com/andy9775/dataloader/strategies"
 
 	"github.com/andy9775/dataloader"
+
+	"github.com/go-log/log"
 )
 
 // Options contains the strategy configuration
 type options struct {
 	timeout time.Duration
+	logger  log.Logger
 }
 
 // Option accepts the dataloader and sets an option on it.
@@ -62,6 +65,13 @@ func NewStandardStrategy(opts ...Option) func(int, dataloader.BatchFunction) dat
 func WithTimeout(t time.Duration) Option {
 	return func(o *options) {
 		o.timeout = t
+	}
+}
+
+// WithLogger configures the logger for the strategy. Default is a no op logger.
+func WithLogger(l log.Logger) Option {
+	return func(o *options) {
+		o.logger = l
 	}
 }
 
@@ -195,6 +205,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 
 		go func(ctx context.Context) {
 			subscribers := make([]chan dataloader.ResultMap, 0, s.keys.Capacity())
+			s.options.logger.Logf("starting new worker with capacity: %d", s.keys.Capacity())
 
 			defer func() {
 				s.workerMutex.Lock()
@@ -223,6 +234,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 						r = s.batchFunc(ctx, s.keys)
 					}
 				case <-time.After(s.options.timeout):
+					s.options.logger.Logf("worker timing out with %d keys", s.keys.Length())
 					r = s.batchFunc(ctx, s.keys)
 				}
 			}
@@ -240,6 +252,7 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 // formatOptions configures default values for the loader options
 func formatOptions(opts *options) {
 	opts.timeout = 16 * time.Millisecond
+	opts.logger = log.DefaultLogger
 }
 
 // buildResultMap filters through the provided result map and returns an ResultMap
