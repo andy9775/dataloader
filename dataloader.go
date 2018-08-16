@@ -20,6 +20,9 @@ type DataLoader interface {
 	// Internally LoadMany adds the provided keys to the keys array and returns a callback
 	// function which when called returns the values for the provided keys.
 	LoadMany(context.Context, ...Key) ThunkMany
+
+	// Capacity reveals the capacity that this loader was set to.
+	Capacity() int
 }
 
 // BatchFunction is called with n keys after the keys passed to the loader reach
@@ -48,7 +51,7 @@ func NewDataLoader(
 	opts ...Option,
 ) DataLoader {
 
-	loader := dataloader{}
+	loader := dataloader{capacity: capacity}
 
 	// set the options
 	for _, apply := range opts {
@@ -113,6 +116,8 @@ type dataloader struct {
 	cache    Cache
 	tracer   Tracer
 	logger   log.Logger
+
+	capacity int
 }
 
 // Load returns the Thunk for the specified Key by calling the Load method on the provided strategy.
@@ -168,4 +173,9 @@ func (d *dataloader) LoadMany(ogCtx context.Context, keyArr ...Key) ThunkMany {
 
 		return result
 	}
+}
+
+// Capacity returns the capacity that this loader was set to.
+func (d *dataloader) Capacity() int {
+	return d.capacity
 }
