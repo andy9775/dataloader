@@ -90,6 +90,9 @@ provided keys to the keys array and returns a callback function which when
 called returns the values for the provided keys. LoadMany does not block
 callers.
 
+**`Capacity() int`**<br>
+Returns the capacity that the dataloader was set for
+
 The options include:
 
 **`WithCache(Cache) Option`**<br>
