@@ -25,6 +25,10 @@ type DataLoader interface {
 	Capacity() int
 }
 
+// StrategyFunction defines the return type of strategy builder functions.
+// A strategy builder function returns a specific strategy when called.
+type StrategyFunction func(int, BatchFunction) Strategy
+
 // BatchFunction is called with n keys after the keys passed to the loader reach
 // the loader capacity
 type BatchFunction func(context.Context, Keys) *ResultMap
@@ -47,7 +51,7 @@ type Option func(*dataloader)
 func NewDataLoader(
 	capacity int,
 	batch BatchFunction,
-	fn func(int /* capacity */, BatchFunction) Strategy,
+	fn StrategyFunction,
 	opts ...Option,
 ) DataLoader {
 

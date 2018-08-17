@@ -43,7 +43,7 @@ const (
 // a specified timeout duration (see Options) to ensure it doesn't block for too long.
 // It attempts to ensure that each call to the batch function includes an array of keys
 // whose length is >= 1 and <= the capacity.
-func NewSozuStrategy(opts ...Option) func(int, dataloader.BatchFunction) dataloader.Strategy {
+func NewSozuStrategy(opts ...Option) dataloader.StrategyFunction {
 	return func(capacity int, batch dataloader.BatchFunction) dataloader.Strategy {
 		// default options
 		o := options{}
