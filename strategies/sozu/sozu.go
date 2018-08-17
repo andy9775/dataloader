@@ -258,7 +258,7 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 
 		go func(ctx context.Context) {
 			subscribers := make([]chan dataloader.ResultMap, 0, s.keys.Capacity())
-			s.options.logger.Logf("starting new worker with capacity: ", s.keys.Capacity())
+			s.options.logger.Logf("starting new worker with capacity: %d", s.keys.Capacity())
 
 			defer func() {
 				s.workerMutex.Lock()

@@ -126,7 +126,7 @@ func (d *dataloader) Load(ogCtx context.Context, key Key) Thunk {
 	ctx, finish := d.tracer.Load(ogCtx, key)
 
 	if r, ok := d.cache.GetResult(ctx, key); ok {
-		d.logger.Logf("cache hit for: ", key)
+		d.logger.Logf("cache hit for: %d", key)
 		d.strategy.LoadNoOp(ctx)
 		return func() Result {
 			finish(r)
@@ -154,7 +154,7 @@ func (d *dataloader) LoadMany(ogCtx context.Context, keyArr ...Key) ThunkMany {
 	ctx, finish := d.tracer.LoadMany(ogCtx, keyArr)
 
 	if r, ok := d.cache.GetResultMap(ctx, keyArr...); ok {
-		d.logger.Logf("cache hit for: ", keyArr)
+		d.logger.Logf("cache hit for: %d", keyArr)
 		d.strategy.LoadNoOp(ctx)
 		return func() ResultMap {
 			finish(r)
