@@ -173,3 +173,16 @@ func (d *dataloader) LoadMany(ogCtx context.Context, keyArr ...Key) ThunkMany {
 		return result
 	}
 }
+
+/*
+	Should we be handling context cancellation??
+
+
+	is the current implementation of context canceler  correct? That is, will the go routines be canceled
+	appropriately (we don't want them to block and leak)
+	specifically around the once strategy. The current implementation will execute the batch function no matter
+	what. It should therefore also be up to the user to handle canceling in the batch function in case it is
+	getting called or gets called.
+
+	The other worker go routines will cancel and stop waiting for new keys.
+*/

@@ -49,10 +49,11 @@ func NewStandardStrategy(opts ...Option) dataloader.StrategyFunction {
 			counter:   strategies.NewCounter(capacity),
 
 			workerMutex:     &sync.Mutex{},
-			keyChan:         make(chan workerMessage, capacity),
-			closeChan:       make(chan struct{}),
 			goroutineStatus: notRunning,
-			options:         o,
+
+			keyChan:   make(chan workerMessage, capacity),
+			closeChan: make(chan struct{}),
+			options:   o,
 
 			keys: dataloader.NewKeys(capacity),
 		}
@@ -84,12 +85,11 @@ type standardStrategy struct {
 	keys      dataloader.Keys
 	batchFunc dataloader.BatchFunction
 
-	workerMutex *sync.Mutex
+	workerMutex     *sync.Mutex
+	goroutineStatus int
 
 	keyChan   chan workerMessage
 	closeChan chan struct{}
-
-	goroutineStatus int
 
 	options options
 }
@@ -132,6 +132,8 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 		}
 
 		select {
+		case <-ctx.Done():
+			return dataloader.Result{Result: nil, Err: nil}
 		case r := <-resultChan:
 			result = r.GetValue(key)
 			return result
@@ -170,6 +172,8 @@ func (s *standardStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Ke
 		}
 
 		select {
+		case <-ctx.Done():
+			return dataloader.NewResultMap(0)
 		case r := <-resultChan:
 			resultMap = buildResultMap(keyArr, r)
 			return resultMap
@@ -221,6 +225,9 @@ func (s *standardStrategy) startWorker(ctx context.Context) {
 			var r *dataloader.ResultMap
 			for r == nil {
 				select {
+				case <-ctx.Done():
+					s.options.logger.Logf("worker cancelled")
+					return
 				case key := <-s.keyChan:
 					// if LoadNoOp passes a value through the chan, ignore the data and increment the counter
 					if key.resultChan != nil {

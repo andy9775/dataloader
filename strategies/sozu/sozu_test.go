@@ -66,6 +66,41 @@ func timeout(t *testing.T, timeoutChannel chan struct{}, after time.Duration) {
 	}()
 }
 
+type mockLogger struct {
+	logMsgs []string
+	m       sync.Mutex
+}
+
+func (l *mockLogger) Log(v ...interface{}) {
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	for _, value := range v {
+		switch i := value.(type) {
+		case string:
+			l.logMsgs = append(l.logMsgs, i)
+		default:
+			panic("mock logger only takes single log string")
+		}
+	}
+}
+
+func (l *mockLogger) Logf(format string, v ...interface{}) {
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	l.logMsgs = append(l.logMsgs, fmt.Sprintf(format, v...))
+}
+
+func (l *mockLogger) Messages() []string {
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	result := make([]string, len(l.logMsgs))
+	copy(result, l.logMsgs)
+	return result
+}
+
 // ================================================== tests ==================================================
 
 // ========================= test timeout =========================
@@ -532,4 +567,72 @@ func TestLoadManyBlocked(t *testing.T) {
 		r.(dataloader.ResultMap).GetValue(key2).Result.(string),
 		"Expected result from thunkMany()",
 	)
+}
+
+// =========================================== cancellable context ===========================================
+
+// TestCancellableContextLoad ensures that a call to cancel the context kills the background worker
+func TestCancellableContextLoad(t *testing.T) {
+	// setup
+	closeChan := make(chan struct{})
+	timeout(t, closeChan, TEST_TIMEOUT*3)
+
+	callCount := 0
+	expectedResult := "cancel_via_context"
+	cb := func(keys dataloader.Keys) {
+		callCount += 1
+		close(closeChan)
+	}
+
+	key := PrimaryKey(1)
+	log := mockLogger{logMsgs: make([]string, 2), m: sync.Mutex{}}
+	batch := getBatchFunction(cb, expectedResult)
+	strategy := sozu.NewSozuStrategy(
+		sozu.WithLogger(&log),
+	)(2, batch) // expected 2 load calls
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// invoke
+	go cancel()
+	thunk := strategy.Load(ctx, key)
+	thunk()
+	time.Sleep(100 * time.Millisecond)
+
+	// assert
+	assert.Equal(t, 0, callCount, "Batch should not have been called")
+	m := log.Messages()
+	assert.Equal(t, "worker cancelled", m[len(m)-1], "Expected worker to cancel and log exit")
+}
+
+// TestCancellableContextLoadMany ensures that a call to cancel the context kills the background worker
+func TestCancellableContextLoadMany(t *testing.T) {
+	// setup
+	closeChan := make(chan struct{})
+	timeout(t, closeChan, TEST_TIMEOUT*3)
+
+	callCount := 0
+	expectedResult := "cancel_via_context"
+	cb := func(keys dataloader.Keys) {
+		callCount += 1
+		close(closeChan)
+	}
+
+	key := PrimaryKey(1)
+	log := mockLogger{logMsgs: make([]string, 2), m: sync.Mutex{}}
+	batch := getBatchFunction(cb, expectedResult)
+	strategy := sozu.NewSozuStrategy(
+		sozu.WithLogger(&log),
+	)(2, batch) // expected 2 load calls
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// invoke
+	go cancel()
+	thunk := strategy.LoadMany(ctx, key)
+	thunk()
+	time.Sleep(100 * time.Millisecond)
+
+	// assert
+	assert.Equal(t, 0, callCount, "Batch should not have been called")
+	m := log.Messages()
+	assert.Equal(t, "worker cancelled", m[len(m)-1], "Expected worker to cancel and log exit")
 }

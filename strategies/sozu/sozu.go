@@ -59,9 +59,10 @@ func NewSozuStrategy(opts ...Option) dataloader.StrategyFunction {
 			counter:   strategies.NewCounter(capacity),
 
 			workerMutex:     &sync.Mutex{},
-			keyChan:         make(chan workerMessage, capacity),
 			goroutineStatus: notRunning,
-			options:         o,
+
+			keyChan: make(chan workerMessage, capacity),
+			options: o,
 
 			keys: dataloader.NewKeys(capacity),
 		}
@@ -93,12 +94,11 @@ type sozuStrategy struct {
 	keys      dataloader.Keys
 	batchFunc dataloader.BatchFunction
 
-	workerMutex *sync.Mutex
+	workerMutex     *sync.Mutex
+	goroutineStatus int
 
 	keyChan   chan workerMessage
 	closeChan chan struct{}
-
-	goroutineStatus int
 
 	options options
 }
@@ -165,6 +165,8 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 			}
 
 			select {
+			case <-ctx.Done():
+				return dataloader.Result{Result: nil, Err: nil}
 			case r := <-resultChan:
 				result = r.GetValue(key)
 				return result
@@ -218,6 +220,8 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 			}
 
 			select {
+			case <-ctx.Done():
+				return dataloader.NewResultMap(0)
 			case r := <-resultChan:
 				result := dataloader.NewResultMap(len(keyArr))
 
@@ -273,6 +277,9 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 			var r *dataloader.ResultMap
 			for r == nil {
 				select {
+				case <-ctx.Done():
+					s.options.logger.Log("worker cancelled")
+					return
 				case key := <-s.keyChan:
 					// if LoadNoOp passes a value through the chan, ignore the data and increment the counter
 					if key.resultChan != nil {

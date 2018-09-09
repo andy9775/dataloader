@@ -11,12 +11,15 @@ package once
 import (
 	"context"
 
+	"github.com/go-log/log"
+
 	"github.com/andy9775/dataloader"
 )
 
 // Options contains the strategy configuration
 type options struct {
 	inBackground bool
+	logger       log.Logger
 }
 
 // Option accepts the dataloader and sets an option on it.
@@ -55,6 +58,13 @@ type onceStrategy struct {
 func WithInBackground() Option {
 	return func(o *options) {
 		o.inBackground = true
+	}
+}
+
+// WithLogger configures the logger for the strategy. Default is a no op logger.
+func WithLogger(l log.Logger) Option {
+	return func(o *options) {
+		o.logger = l
 	}
 }
 
@@ -116,8 +126,13 @@ func (s *onceStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 				return result
 			}
 
-			result = <-resultChan
-			return result
+			select {
+			case <-ctx.Done():
+				s.options.logger.Log("worker cancelled")
+				return dataloader.NewResultMap(0)
+			case result = <-resultChan:
+				return result
+			}
 		}
 	}
 
@@ -142,4 +157,5 @@ func (*onceStrategy) LoadNoOp(context.Context) {}
 // formatOptions configures the default values for the loader
 func formatOptions(opts *options) {
 	opts.inBackground = false
+	opts.logger = log.DefaultLogger
 }

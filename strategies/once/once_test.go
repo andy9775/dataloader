@@ -55,6 +55,41 @@ func timeout(t *testing.T, timeoutChannel chan struct{}, after time.Duration) {
 	}()
 }
 
+type mockLogger struct {
+	logMsgs []string
+	m       sync.Mutex
+}
+
+func (l *mockLogger) Log(v ...interface{}) {
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	for _, value := range v {
+		switch i := value.(type) {
+		case string:
+			l.logMsgs = append(l.logMsgs, i)
+		default:
+			panic("mock logger only takes single log string")
+		}
+	}
+}
+
+func (l *mockLogger) Logf(format string, v ...interface{}) {
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	l.logMsgs = append(l.logMsgs, fmt.Sprintf(format, v...))
+}
+
+func (l *mockLogger) Messages() []string {
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	result := make([]string, len(l.logMsgs))
+	copy(result, l.logMsgs)
+	return result
+}
+
 // ================================================== tests ==================================================
 
 // ========================= foreground calls =========================
@@ -197,4 +232,41 @@ func TestBatchLoadManyInBackgroundCalled(t *testing.T) {
 	r = thunkMany()
 	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on LoadMany()")
+}
+
+// =========================================== cancellable context ===========================================
+
+// TestCancellableContextLoadMany ensures that a call to cancel the context kills the background worker
+func TestCancellableContextLoadMany(t *testing.T) {
+	// setup
+	closeChan := make(chan struct{})
+	timeout(t, closeChan, TEST_TIMEOUT*3)
+
+	expectedResult := "cancel_via_context"
+	cb := func() {
+		close(closeChan)
+	}
+
+	key := PrimaryKey(1)
+	result := dataloader.Result{Result: expectedResult, Err: nil}
+	/*
+		ensure the loader doesn't call batch after timeout. If it does, the test will timeout and panic
+	*/
+	log := mockLogger{logMsgs: make([]string, 2), m: sync.Mutex{}}
+	batch := getBatchFunction(cb, result)
+	strategy := once.NewOnceStrategy(
+		once.WithLogger(&log),
+		once.WithInBackground(),
+	)(2, batch) // expected 2 load calls
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// invoke
+	go cancel()
+	thunk := strategy.LoadMany(ctx, key)
+	thunk()
+	time.Sleep(100 * time.Millisecond)
+
+	// assert
+	m := log.Messages()
+	assert.Equal(t, "worker cancelled", m[len(m)-1], "Expected worker to cancel and log exit")
 }
