@@ -593,7 +593,7 @@ func TestCancellableContextLoad(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// invoke
-	go cancel()
+	cancel()
 	thunk := strategy.Load(ctx, key)
 	thunk()
 	time.Sleep(100 * time.Millisecond)
@@ -626,7 +626,7 @@ func TestCancellableContextLoadMany(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// invoke
-	go cancel()
+	cancel()
 	thunk := strategy.LoadMany(ctx, key)
 	thunk()
 	time.Sleep(100 * time.Millisecond)
