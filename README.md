@@ -393,5 +393,5 @@ the actual go routine.
 - [x] Tests!!
 - [x] LoadMany - ability to call load with multiple keys
 - [ ] Examples
-- [ ] Logging
+- [x] Logging
 - [x] Tracing
