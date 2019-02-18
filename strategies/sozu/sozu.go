@@ -125,6 +125,7 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 	s.keyChan <- message // pass key to the worker go routine
 
 	var result dataloader.Result
+	var ok bool
 	/*
 		TODO: clean up
 		If a worker go routine is in the process of calling the batch function and another
@@ -140,9 +141,9 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 		This solution isn't clean, or totally efficient but ensures that a worker will pick up the key
 		and process it.
 	*/
-	return func() dataloader.Result {
+	return func() (dataloader.Result, bool) {
 		if result.Result != nil || result.Err != nil {
-			return result
+			return result, ok
 		}
 
 		for {
@@ -159,17 +160,17 @@ func (s *sozuStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.
 			*/
 			select {
 			case r := <-resultChan:
-				result = r.GetValue(key)
-				return result
+				result, ok = r.GetValue(key)
+				return result, ok
 			default:
 			}
 
 			select {
 			case <-ctx.Done():
-				return dataloader.Result{Result: nil, Err: nil}
+				return dataloader.Result{Result: nil, Err: nil}, false
 			case r := <-resultChan:
-				result = r.GetValue(key)
-				return result
+				result, ok = r.GetValue(key)
+				return result, ok
 			case <-s.closeChan:
 				/*
 					Current worker closed, therefore no readers reading off of the key chan to get
@@ -211,7 +212,9 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 				result := dataloader.NewResultMap(len(keyArr))
 
 				for _, k := range keyArr {
-					result.Set(k.String(), r.GetValue(k))
+					if val, ok := r.GetValue(k); ok {
+						result.Set(k.String(), val)
+					}
 				}
 
 				resultMap = result
@@ -226,7 +229,9 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 				result := dataloader.NewResultMap(len(keyArr))
 
 				for _, k := range keyArr {
-					result.Set(k.String(), r.GetValue(k))
+					if val, ok := r.GetValue(k); ok {
+						result.Set(k.String(), val)
+					}
 				}
 
 				resultMap = result

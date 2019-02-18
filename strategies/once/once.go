@@ -74,35 +74,41 @@ func WithLogger(l log.Logger) Option {
 // background go routine (blocking if no data is available). Note that if the strategy is configured to
 // run in the background, calling Load again will spin up another background go routine.
 func (s *onceStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Thunk {
-	var result dataloader.Result
+
+	type data struct {
+		r  dataloader.Result
+		ok bool
+	}
+	var result data
 
 	if s.options.inBackground {
-		resultChan := make(chan dataloader.Result)
+		resultChan := make(chan data)
 
 		// don't check if result is nil before starting in case a new key is passed in
 		go func() {
-			resultChan <- (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
+			r, ok := (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
+			resultChan <- data{r, ok}
 		}()
 
 		// call batch in background and block util it returns
-		return func() dataloader.Result {
-			if result.Result != nil || result.Err != nil {
-				return result
+		return func() (dataloader.Result, bool) {
+			if result.r.Result != nil || result.r.Err != nil {
+				return result.r, result.ok
 			}
 
 			result = <-resultChan
-			return result
+			return result.r, result.ok
 		}
 	}
 
 	// call batch when thunk is called
-	return func() dataloader.Result {
-		if result.Result != nil || result.Err != nil {
-			return result
+	return func() (dataloader.Result, bool) {
+		if result.ok {
+			return result.r, result.ok
 		}
 
-		result = (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
-		return result
+		result.r, result.ok = (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
+		return result.r, result.ok
 	}
 }
 

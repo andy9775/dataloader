@@ -163,7 +163,8 @@ func TestLoadNoTimeout(t *testing.T) {
 	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 	assert.Equal(t, 2, len(k), "Expected to be called with 2 keys")
 
-	r := thunk()
+	r, ok := thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
@@ -174,7 +175,8 @@ func TestLoadNoTimeout(t *testing.T) {
 	assert.False(t, timedOut, "Expected loader not to timeout")
 
 	// test double call to thunk
-	r = thunk()
+	r, ok = thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
@@ -244,10 +246,12 @@ func TestLoadManyNoTimeout(t *testing.T) {
 	assert.Equal(t, 3, len(k), "Expected to be called with 2 keys")
 
 	r := thunk()
+	returned, ok := r.GetValue(key2)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
-		r.(dataloader.ResultMap).GetValue(key2).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunk()",
 	)
 
@@ -255,10 +259,12 @@ func TestLoadManyNoTimeout(t *testing.T) {
 
 	// test double call to thunk
 	r = thunk()
+	returned, ok = r.GetValue(key2)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
-		r.(dataloader.ResultMap).GetValue(key2).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunk()",
 	)
 	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
@@ -328,7 +334,8 @@ func TestLoadTimeout(t *testing.T) {
 	assert.Equal(t, 1, len(k), "Expected to be called with 1 key")
 	assert.True(t, timedOut, "Expected loader to timeout")
 
-	r := thunk2()
+	r, ok := thunk2()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
@@ -339,7 +346,8 @@ func TestLoadTimeout(t *testing.T) {
 	// don't wait below - callback is not executing in background go routine - ensure wg doesn't go negative
 	wg.Add(1)
 	thunk := strategy.Load(context.Background(), key) // --------- Load 		 - call 3
-	r = thunk()
+	r, ok = thunk()
+	assert.True(t, ok, "Expected result to have been found")
 
 	// called once in go routine after timeout, once in thunk
 	assert.Equal(t, 2, callCount, "Batch function expected to be called twice")
@@ -350,7 +358,8 @@ func TestLoadTimeout(t *testing.T) {
 	)
 
 	// test double call to thunk
-	r = thunk()
+	r, ok = thunk()
+	assert.True(t, ok, "Expected result to have been found")
 
 	// called once in go routine after timeout, once in thunk
 	assert.Equal(t, 2, callCount, "Batch function expected to be called twice")
@@ -425,10 +434,12 @@ func TestLoadManyTimeout(t *testing.T) {
 	assert.True(t, timedOut, "Expected loader to timeout")
 
 	r := thunkMany2()
+	returned, ok := r.GetValue(key2)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
-		r.(dataloader.ResultMap).GetValue(key2).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunkMany()",
 	)
 
@@ -439,9 +450,11 @@ func TestLoadManyTimeout(t *testing.T) {
 
 	// called once in go routine after timeout, once in thunkMany
 	assert.Equal(t, 2, callCount, "Batch function expected to be called twice")
+	returned, ok = r.GetValue(key3)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t,
 		fmt.Sprintf("3_%s", expectedResult),
-		r.(dataloader.ResultMap).GetValue(key3).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunkMany",
 	)
 	assert.Equal(t, 2, len(k), "Expected to be called with 2 keys") // second function call
@@ -451,9 +464,11 @@ func TestLoadManyTimeout(t *testing.T) {
 
 	// called once in go routine after timeout, once in thunkMany
 	assert.Equal(t, 2, callCount, "Batch function expected to be called twice")
+	returned, ok = r.GetValue(key3)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t,
 		fmt.Sprintf("3_%s", expectedResult),
-		r.(dataloader.ResultMap).GetValue(key3).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunkMany",
 	)
 }
@@ -524,4 +539,71 @@ func TestCancellableContextLoadMany(t *testing.T) {
 	assert.Equal(t, 0, callCount, "Batch should not have been called")
 	m := log.Messages()
 	assert.Equal(t, "worker cancelled", m[len(m)-1], "Expected worker to cancel and log exit")
+}
+
+// =============================================== result keys ===============================================
+// TestKeyHandling ensure that the strategy properly handles unprocessed and nil keys
+func TestKeyHandling(t *testing.T) {
+	// setup
+	expectedResult := map[PrimaryKey]interface{}{
+		PrimaryKey(1): "valid_result",
+		PrimaryKey(2): nil,
+		PrimaryKey(3): "__skip__", // this key should be skipped by the batch function
+	}
+
+	batch := func(ctx context.Context, keys dataloader.Keys) *dataloader.ResultMap {
+		m := dataloader.NewResultMap(2)
+		for i := 0; i < keys.Length(); i++ {
+			key := keys.Keys()[i].(PrimaryKey)
+			if expectedResult[key] != "__skip__" {
+				m.Set(key.String(), dataloader.Result{Result: expectedResult[key], Err: nil})
+			}
+		}
+		return &m
+	}
+
+	// invoke/assert
+	strategy := standard.NewStandardStrategy()(3, batch)
+
+	// Load
+	for key, expected := range expectedResult {
+		thunk := strategy.Load(context.Background(), key)
+		r, ok := thunk()
+
+		switch expected.(type) {
+		case string:
+			if expected == "__skip__" {
+				assert.False(t, ok, "Expected skipped result to not be found")
+				assert.Nil(t, r.Result, "Expected skipped result to be nil")
+			} else {
+				assert.True(t, ok, "Expected processed result to be found")
+				assert.Equal(t, r.Result, expected, "Expected result")
+			}
+		case nil:
+			assert.True(t, ok, "Expected processed result to be found")
+			assert.Nil(t, r.Result, "Expected result to be nil")
+		}
+	}
+
+	// LoadMany
+	thunkMany := strategy.LoadMany(context.Background(), PrimaryKey(1), PrimaryKey(2), PrimaryKey(3))
+	for key, expected := range expectedResult {
+		result := thunkMany()
+		r, ok := result.GetValue(key)
+
+		switch expected.(type) {
+		case string:
+			if expected == "__skip__" {
+				assert.False(t, ok, "Expected skipped result to not be found")
+				assert.Nil(t, r.Result, "Expected skipped result to be nil")
+			} else {
+				assert.True(t, ok, "Expected processed result to be found")
+				assert.Equal(t, r.Result, expected, "Expected result")
+			}
+		case nil:
+			assert.True(t, ok, "Expected processed result to be found")
+			assert.Nil(t, r.Result, "Expected result to be nil")
+		}
+
+	}
 }

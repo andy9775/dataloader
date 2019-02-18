@@ -113,11 +113,13 @@ func TestBatchLoadInForegroundCalled(t *testing.T) {
 	thunk := strategy.Load(context.Background(), key)
 	assert.Equal(t, 0, callCount, "Batch function not expected to be called on Load()")
 
-	r := thunk()
+	r, ok := thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunk()")
 	assert.Equal(t, expectedResult, r.Result.(string), "Expected result from batch function")
 
-	r = thunk()
+	r, ok = thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunk()")
 	assert.Equal(t, expectedResult, r.Result.(string), "Expected result from batch function")
 }
@@ -143,12 +145,16 @@ func TestBatchLoadManyInForegroundCalled(t *testing.T) {
 	assert.Equal(t, 0, callCount, "Batch function not expected to be called on LoadMany()")
 
 	r := thunkMany()
+	returned, ok := r.GetValue(key)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunkMany()")
-	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
+	assert.Equal(t, expectedResult, returned.Result.(string), "Expected result from batch function")
 
 	r = thunkMany()
+	returned, ok = r.GetValue(key)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on thunkMany()")
-	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
+	assert.Equal(t, expectedResult, returned.Result.(string), "Expected result from batch function")
 }
 
 // ========================= background calls =========================
@@ -189,9 +195,12 @@ func TestBatchLoadInBackgroundCalled(t *testing.T) {
 
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on Load() in background")
 
-	r := thunk()
+	r, ok := thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, expectedResult, r.Result.(string), "Expected value from batch function")
-	r = thunk()
+
+	r, ok = thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, expectedResult, r.Result.(string), "Expected value from batch function")
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on Load() in background")
 }
@@ -228,9 +237,14 @@ func TestBatchLoadManyInBackgroundCalled(t *testing.T) {
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on LoadMany()")
 
 	r := thunkMany()
-	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
+	returned, ok := r.GetValue(key)
+	assert.True(t, ok, "Expected result to have been found")
+	assert.Equal(t, expectedResult, returned.Result.(string), "Expected result from batch function")
+
 	r = thunkMany()
-	assert.Equal(t, expectedResult, r.GetValue(key).Result.(string), "Expected result from batch function")
+	returned, ok = r.GetValue(key)
+	assert.True(t, ok, "Expected result to have been found")
+	assert.Equal(t, expectedResult, returned.Result.(string), "Expected result from batch function")
 	assert.Equal(t, 1, callCount, "Batch function expected to be called on LoadMany()")
 }
 
@@ -269,4 +283,80 @@ func TestCancellableContextLoadMany(t *testing.T) {
 	// assert
 	m := log.Messages()
 	assert.Equal(t, "worker cancelled", m[len(m)-1], "Expected worker to cancel and log exit")
+}
+
+// =============================================== result keys ===============================================
+// TestKeyHandling ensures that processed and unprocessed keys by the batch function are handled correctly
+// This test accomplishes this by skipping processing a single key and then asserts that they skipped key
+// returns the correct ok value when loading the data
+func TestKeyHandling(t *testing.T) {
+	// setup
+	expectedResult := map[PrimaryKey]interface{}{
+		PrimaryKey(1): "valid_result",
+		PrimaryKey(2): nil,
+		PrimaryKey(3): "__skip__", // this key should be skipped by the batch function
+	}
+
+	batch := func(ctx context.Context, keys dataloader.Keys) *dataloader.ResultMap {
+		m := dataloader.NewResultMap(2)
+		for i := 0; i < keys.Length(); i++ {
+			key := keys.Keys()[i].(PrimaryKey)
+			if expectedResult[key] != "__skip__" {
+				m.Set(key.String(), dataloader.Result{Result: expectedResult[key], Err: nil})
+			}
+		}
+		return &m
+	}
+
+	// invoke/assert
+
+	// iterate through multiple strategies table test style
+	strategies := []dataloader.Strategy{
+		once.NewOnceStrategy()(3, batch),
+		once.NewOnceStrategy(once.WithInBackground())(3, batch),
+	}
+	for _, strategy := range strategies {
+
+		// Load
+		for key, expected := range expectedResult {
+			thunk := strategy.Load(context.Background(), key)
+			r, ok := thunk()
+
+			switch expected.(type) {
+			case string:
+				if expected == "__skip__" {
+					assert.False(t, ok, "Expected skipped result to not be found")
+					assert.Nil(t, r.Result, "Expected skipped result to be nil")
+				} else {
+					assert.True(t, ok, "Expected processed result to be found")
+					assert.Equal(t, r.Result, expected, "Expected result")
+				}
+			case nil:
+				assert.True(t, ok, "Expected processed result to be found")
+				assert.Nil(t, r.Result, "Expected result to be nil")
+			}
+		}
+
+		// LoadMany
+		thunkMany := strategy.LoadMany(context.Background(), PrimaryKey(1), PrimaryKey(2), PrimaryKey(3))
+		for key, expected := range expectedResult {
+			result := thunkMany()
+			r, ok := result.GetValue(key)
+
+			switch expected.(type) {
+			case string:
+				if expected == "__skip__" {
+					assert.False(t, ok, "Expected skipped result to not be found")
+					assert.Nil(t, r.Result, "Expected skipped result to be nil")
+				} else {
+					assert.True(t, ok, "Expected processed result to be found")
+					assert.Equal(t, r.Result, expected, "Expected result")
+				}
+			case nil:
+				assert.True(t, ok, "Expected processed result to be found")
+				assert.Nil(t, r.Result, "Expected result to be nil")
+			}
+
+		}
+	}
 }
