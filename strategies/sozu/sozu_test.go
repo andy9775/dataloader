@@ -167,7 +167,8 @@ func TestLoadTimeoutTriggered(t *testing.T) {
 	toWG.Wait()
 	assert.True(t, timedOut, "Expected function to timeout")
 
-	r := thunk()
+	r, ok := thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
@@ -176,7 +177,8 @@ func TestLoadTimeoutTriggered(t *testing.T) {
 	)
 
 	// test double call to thunk
-	r = thunk()
+	r, ok = thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
@@ -251,9 +253,11 @@ func TestLoadManyTimeoutTriggered(t *testing.T) {
 	assert.True(t, timedOut, "Expected function to have timed out")
 
 	r1 := thunkMany2()
+	returned1, ok := r1.GetValue(key2)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t,
 		fmt.Sprintf("2_%s", expectedResult),
-		r1.(dataloader.ResultMap).GetValue(key2).Result.(string),
+		returned1.Result.(string),
 		"Expected batch function to return on thunkMany()",
 	)
 
@@ -261,7 +265,7 @@ func TestLoadManyTimeoutTriggered(t *testing.T) {
 	assert.Equal(
 		t,
 		3,
-		r1.(dataloader.ResultMap).Length()+r2.(dataloader.ResultMap).Length(),
+		r1.Length()+r2.Length(),
 		"Expected 3 total results from both thunkMany function",
 	)
 
@@ -270,7 +274,7 @@ func TestLoadManyTimeoutTriggered(t *testing.T) {
 	assert.Equal(
 		t,
 		3,
-		r1.(dataloader.ResultMap).Length()+r2.(dataloader.ResultMap).Length(),
+		r1.Length()+r2.Length(),
 		"Expected 3 total results from both thunkMany function",
 	)
 	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
@@ -336,7 +340,8 @@ func TestLoadTriggered(t *testing.T) {
 	assert.Equal(t, 1, callCount, "Batch function expected to be called once")
 	// capacity is 2, called with 1 key and 1 cache hit
 	assert.Equal(t, 1, len(k), "Expected to be called with 1 keys")
-	r1 := thunk()
+	r1, ok := thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("1_%s", expectedResult),
@@ -347,7 +352,8 @@ func TestLoadTriggered(t *testing.T) {
 	assert.False(t, timedOut, "Expected function to not timeout")
 
 	// test double call to thunk
-	r1 = thunk()
+	r1, ok = thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("1_%s", expectedResult),
@@ -417,10 +423,12 @@ func TestLoadManyTriggered(t *testing.T) {
 	// capacity is 2, called with 2 keys and one cache hit
 	assert.Equal(t, 2, len(k), "Expected to be called with 2 keys")
 	r1 := thunk()
+	returned1, ok := r1.GetValue(key)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("1_%s", expectedResult),
-		r1.(dataloader.ResultMap).GetValue(key).Result,
+		returned1.Result,
 		"Expected batch function to return on thunk()",
 	)
 
@@ -428,10 +436,12 @@ func TestLoadManyTriggered(t *testing.T) {
 
 	// test double call to thunk
 	r1 = thunk() // don't block on second call
+	returned1, ok = r1.GetValue(key)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("1_%s", expectedResult),
-		r1.(dataloader.ResultMap).GetValue(key).Result,
+		returned1.Result,
 		"Expected batch function to return on thunk()",
 	)
 	assert.Equal(t, 1, callCount, "Batch function expected to be called once ")
@@ -481,16 +491,18 @@ func TestLoadBlocked(t *testing.T) {
 	thunk := strategy.Load(context.Background(), key) // --------- Load     -  call 1
 	strategy.LoadNoOp(context.Background())           // --------- LoadNoOp -  call 2
 
-	r := thunk() // block until batch function executes
+	r, ok := thunk() // block until batch function executes
 
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, 1, callCount, "Batch function should have been called once")
 	assert.False(t, timedOut, "Batch function should not have timed out")
 	assert.Equal(t, 1, len(k), "Should have been called with one key")
 	assert.Equal(t, fmt.Sprintf("1_%s", expectedResult), r.Result.(string), "Expected result from thunk()")
 
 	// test double call to thunk
-	r = thunk() // don't block on second call
+	r, ok = thunk() // don't block on second call
 
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, 1, callCount, "Batch function should have been called once")
 	assert.False(t, timedOut, "Batch function should not have timed out")
 	assert.Equal(t, 1, len(k), "Should have been called with one key")
@@ -548,10 +560,12 @@ func TestLoadManyBlocked(t *testing.T) {
 	assert.Equal(t, 1, callCount, "Batch function should have been called once")
 	assert.False(t, timedOut, "Batch function should not have timed out")
 	assert.Equal(t, 2, len(k), "Should have been called with two keys")
+	returned, ok := r.GetValue(key2)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
-		r.(dataloader.ResultMap).GetValue(key2).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunkMany()",
 	)
 
@@ -561,10 +575,12 @@ func TestLoadManyBlocked(t *testing.T) {
 	assert.Equal(t, 1, callCount, "Batch function should have been called once")
 	assert.False(t, timedOut, "Batch function should not have timed out")
 	assert.Equal(t, 2, len(k), "Should have been called with two keys")
+	returned, ok = r.GetValue(key2)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(
 		t,
 		fmt.Sprintf("2_%s", expectedResult),
-		r.(dataloader.ResultMap).GetValue(key2).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunkMany()",
 	)
 }
@@ -635,4 +651,71 @@ func TestCancellableContextLoadMany(t *testing.T) {
 	assert.Equal(t, 0, callCount, "Batch should not have been called")
 	m := log.Messages()
 	assert.Equal(t, "worker cancelled", m[len(m)-1], "Expected worker to cancel and log exit")
+}
+
+// =============================================== result keys ===============================================
+// TestKeyHandling ensure that the strategy properly handles unprocessed and nil keys
+func TestKeyHandling(t *testing.T) {
+	// setup
+	expectedResult := map[PrimaryKey]interface{}{
+		PrimaryKey(1): "valid_result",
+		PrimaryKey(2): nil,
+		PrimaryKey(3): "__skip__", // this key should be skipped by the batch function
+	}
+
+	batch := func(ctx context.Context, keys dataloader.Keys) *dataloader.ResultMap {
+		m := dataloader.NewResultMap(2)
+		for i := 0; i < keys.Length(); i++ {
+			key := keys.Keys()[i].(PrimaryKey)
+			if expectedResult[key] != "__skip__" {
+				m.Set(key.String(), dataloader.Result{Result: expectedResult[key], Err: nil})
+			}
+		}
+		return &m
+	}
+
+	// invoke/assert
+	strategy := sozu.NewSozuStrategy()(3, batch)
+
+	// Load
+	for key, expected := range expectedResult {
+		thunk := strategy.Load(context.Background(), key)
+		r, ok := thunk()
+
+		switch expected.(type) {
+		case string:
+			if expected == "__skip__" {
+				assert.False(t, ok, "Expected skipped result to not be found")
+				assert.Nil(t, r.Result, "Expected skipped result to be nil")
+			} else {
+				assert.True(t, ok, "Expected processed result to be found")
+				assert.Equal(t, r.Result, expected, "Expected result")
+			}
+		case nil:
+			assert.True(t, ok, "Expected processed result to be found")
+			assert.Nil(t, r.Result, "Expected result to be nil")
+		}
+	}
+
+	// LoadMany
+	thunkMany := strategy.LoadMany(context.Background(), PrimaryKey(1), PrimaryKey(2), PrimaryKey(3))
+	for key, expected := range expectedResult {
+		result := thunkMany()
+		r, ok := result.GetValue(key)
+
+		switch expected.(type) {
+		case string:
+			if expected == "__skip__" {
+				assert.False(t, ok, "Expected skipped result to not be found")
+				assert.Nil(t, r.Result, "Expected skipped result to be nil")
+			} else {
+				assert.True(t, ok, "Expected processed result to be found")
+				assert.Equal(t, r.Result, expected, "Expected result")
+			}
+		case nil:
+			assert.True(t, ok, "Expected processed result to be found")
+			assert.Nil(t, r.Result, "Expected result to be nil")
+		}
+
+	}
 }

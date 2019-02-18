@@ -110,10 +110,11 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 	s.keyChan <- message // pass key to the worker go routine (buffered channel)
 
 	var result dataloader.Result
+	var ok bool
 
-	return func() dataloader.Result {
+	return func() (dataloader.Result, bool) {
 		if result.Result != nil || result.Err != nil {
-			return result
+			return result, ok
 		}
 
 		/*
@@ -126,20 +127,20 @@ func (s *standardStrategy) Load(ctx context.Context, key dataloader.Key) dataloa
 		*/
 		select {
 		case r := <-resultChan:
-			result = r.GetValue(key)
-			return result
+			result, ok = r.GetValue(key)
+			return result, ok
 		default:
 		}
 
 		select {
 		case <-ctx.Done():
-			return dataloader.Result{Result: nil, Err: nil}
+			return dataloader.Result{Result: nil, Err: nil}, false
 		case r := <-resultChan:
-			result = r.GetValue(key)
-			return result
+			result, ok = r.GetValue(key)
+			return result, ok
 		case <-s.closeChan:
-			result = (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
-			return result
+			result, ok = (*s.batchFunc(ctx, dataloader.NewKeysWith(key))).GetValue(key)
+			return result, ok
 		}
 	}
 }
@@ -268,7 +269,9 @@ func buildResultMap(keyArr []dataloader.Key, r dataloader.ResultMap) dataloader.
 	results := dataloader.NewResultMap(len(keyArr))
 
 	for _, k := range keyArr {
-		results.Set(k.String(), r.GetValue(k))
+		if val, ok := r.GetValue(k); ok {
+			results.Set(k.String(), val)
+		}
 	}
 
 	return results

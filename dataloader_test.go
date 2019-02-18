@@ -101,7 +101,7 @@ func newMockStrategy() func(int, dataloader.BatchFunction) dataloader.Strategy {
 }
 
 func (s *mockStrategy) Load(ctx context.Context, key dataloader.Key) dataloader.Thunk {
-	return func() dataloader.Result {
+	return func() (dataloader.Result, bool) {
 		keys := dataloader.NewKeys(1)
 		keys.Append(key)
 		r := s.batchFunc(ctx, keys)
@@ -147,7 +147,8 @@ func TestLoadCacheHit(t *testing.T) {
 	// invoke / assert
 
 	thunk := loader.Load(context.Background(), key)
-	r := thunk()
+	r, ok := thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, expectedResult.Result.(string), r.Result.(string), "Expected result from thunk")
 	assert.Equal(t, 0, callCount, "Expected batch function to not be called")
 }
@@ -174,12 +175,14 @@ func TestLoadManyCacheHit(t *testing.T) {
 
 	thunk := loader.LoadMany(context.Background(), key, key2)
 	r := thunk()
+	returned, ok := r.GetValue(key)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t,
 		expectedResult.Result.(string),
-		r.(dataloader.ResultMap).GetValue(key).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunk",
 	)
-	assert.Equal(t, 2, r.(dataloader.ResultMap).Length(), "Expected 2 result from cache")
+	assert.Equal(t, 2, r.Length(), "Expected 2 result from cache")
 	assert.Equal(t, 0, callCount, "Expected batch function to not be called")
 }
 
@@ -201,7 +204,8 @@ func TestLoadCacheMiss(t *testing.T) {
 	// invoke / assert
 
 	thunk := loader.Load(context.Background(), key)
-	r := thunk()
+	r, ok := thunk()
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t, result.Result.(string), r.Result.(string), "Expected result from thunk")
 	assert.Equal(t, 1, callCount, "Expected batch function to  be called")
 }
@@ -223,9 +227,11 @@ func TestLoadManyCacheMiss(t *testing.T) {
 
 	thunk := loader.LoadMany(context.Background(), key)
 	r := thunk()
+	returned, ok := r.GetValue(key)
+	assert.True(t, ok, "Expected result to have been found")
 	assert.Equal(t,
 		result.Result.(string),
-		r.(dataloader.ResultMap).GetValue(key).Result.(string),
+		returned.Result.(string),
 		"Expected result from thunk",
 	)
 	assert.Equal(t, 1, callCount, "Expected batch function to  be called")

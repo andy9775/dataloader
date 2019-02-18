@@ -9,7 +9,7 @@ type Result struct {
 // ResultMap maps each loaded elements Result against the elements unique identifier (Key)
 type ResultMap interface {
 	Set(string, Result)
-	GetValue(Key) Result
+	GetValue(Key) (Result, bool)
 	Length() int
 	// Keys returns a slice of all unique identifiers used in the containing map (keys)
 	Keys() []string
@@ -35,15 +35,15 @@ func (r *resultMap) Set(identifier string, value Result) {
 	r.r[identifier] = value
 }
 
-// GetValue returns the value from the results for the provided key.
-// If no value exists, returns nil
-func (r *resultMap) GetValue(key Key) Result {
+// GetValue returns the value from the results for the provided key and true
+// if the value was found, otherwise false.
+func (r *resultMap) GetValue(key Key) (Result, bool) {
 	if key == nil {
-		return Result{}
+		return Result{}, false
 	}
 
-	// No need to check ok, missing value from map[Any]interface{} is nil by default.
-	return r.r[key.String()]
+	result, ok := r.r[key.String()]
+	return result, ok
 }
 
 func (r *resultMap) GetValueForString(key string) Result {

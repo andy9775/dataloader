@@ -32,7 +32,7 @@ type BatchFunction func(context.Context, Keys) *ResultMap
 
 // Thunk returns a result for the key that it was generated for.
 // Calling the Thunk function will block until the result is returned from the batch function.
-type Thunk func() Result
+type Thunk func() (Result, bool)
 
 // ThunkMany returns a result map for the keys that it was generated for.
 // Calling ThunkMany will block until the result is returned from the batch function.
@@ -128,21 +128,21 @@ func (d *dataloader) Load(ogCtx context.Context, key Key) Thunk {
 	if r, ok := d.cache.GetResult(ctx, key); ok {
 		d.logger.Logf("cache hit for: %d", key)
 		d.strategy.LoadNoOp(ctx)
-		return func() Result {
+		return func() (Result, bool) {
 			finish(r)
 
-			return r
+			return r, ok
 		}
 	}
 
 	thunk := d.strategy.Load(ctx, key)
-	return func() Result {
-		result := thunk()
+	return func() (Result, bool) {
+		result, ok := thunk()
 		d.cache.SetResult(ctx, key, result)
 
 		finish(result)
 
-		return result
+		return result, ok
 	}
 }
 
@@ -173,16 +173,3 @@ func (d *dataloader) LoadMany(ogCtx context.Context, keyArr ...Key) ThunkMany {
 		return result
 	}
 }
-
-/*
-	Should we be handling context cancellation??
-
-
-	is the current implementation of context canceler  correct? That is, will the go routines be canceled
-	appropriately (we don't want them to block and leak)
-	specifically around the once strategy. The current implementation will execute the batch function no matter
-	what. It should therefore also be up to the user to handle canceling in the batch function in case it is
-	getting called or gets called.
-
-	The other worker go routines will cancel and stop waiting for new keys.
-*/
