@@ -201,9 +201,9 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 	return func() dataloader.ResultMap {
 		/*
 			NOTE:
-				The purpose of building a new ResultMap (buildResultMap) is to ensure that each caller to the same
-			  strategy gets its own isolated data separate from the other callers. This allows each caller to
-			  iterate through the keys and only get it's own data
+			The purpose of building a new ResultMap (buildResultMap) is to ensure that each caller to the same
+			strategy gets its own isolated data separate from the other callers. This allows each caller to
+			iterate through the keys and only get it's own data
 		*/
 
 		if resultMap != nil {
