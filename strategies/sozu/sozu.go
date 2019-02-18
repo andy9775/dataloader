@@ -199,6 +199,13 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 
 	// See comments in Load method RE: for loop
 	return func() dataloader.ResultMap {
+		/*
+			NOTE:
+				The purpose of building a new ResultMap (buildResultMap) is to ensure that each caller to the same
+			  strategy gets its own isolated data separate from the other callers. This allows each caller to
+			  iterate through the keys and only get it's own data
+		*/
+
 		if resultMap != nil {
 			return resultMap
 		}
@@ -209,15 +216,7 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 			*/
 			select {
 			case r := <-resultChan:
-				result := dataloader.NewResultMap(len(keyArr))
-
-				for _, k := range keyArr {
-					if val, ok := r.GetValue(k); ok {
-						result.Set(k.String(), val)
-					}
-				}
-
-				resultMap = result
+				resultMap = buildResultMap(keyArr, r)
 				return resultMap
 			default:
 			}
@@ -226,15 +225,7 @@ func (s *sozuStrategy) LoadMany(ctx context.Context, keyArr ...dataloader.Key) d
 			case <-ctx.Done():
 				return dataloader.NewResultMap(0)
 			case r := <-resultChan:
-				result := dataloader.NewResultMap(len(keyArr))
-
-				for _, k := range keyArr {
-					if val, ok := r.GetValue(k); ok {
-						result.Set(k.String(), val)
-					}
-				}
-
-				resultMap = result
+				resultMap = buildResultMap(keyArr, r)
 				return resultMap
 			case <-s.closeChan:
 				s.startWorker(ctx)
@@ -317,4 +308,18 @@ func (s *sozuStrategy) startWorker(ctx context.Context) {
 func formatOptions(opts *options) {
 	opts.timeout = 16 * time.Millisecond
 	opts.logger = log.DefaultLogger
+}
+
+// buildResultMap filters through the provided result map and returns an ResultMap
+// for the provided keys
+func buildResultMap(keyArr []dataloader.Key, r dataloader.ResultMap) dataloader.ResultMap {
+	results := dataloader.NewResultMap(len(keyArr))
+
+	for _, k := range keyArr {
+		if val, ok := r.GetValue(k); ok {
+			results.Set(k.String(), val)
+		}
+	}
+
+	return results
 }
