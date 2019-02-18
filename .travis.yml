@@ -3,7 +3,7 @@ language: go
 sudo: false
 
 go:
-  - tip
+  - '1.11'
 
 git:
   depth: 1
