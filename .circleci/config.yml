@@ -1,0 +1,15 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.11
+
+    working_directory: /go/src/github.com/andy9775/dataloader
+    steps:
+      - checkout
+
+      - run: go get github.com/mattn/goveralls
+      - run: go get -u github.com/golang/dep/...
+      - run: dep ensure
+
+      - run: goveralls -v -race -service=travis-ci -repotoken=$COVERALLS_TOKEN
