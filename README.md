@@ -1,6 +1,6 @@
 # DataLoader
 
-[![Build Status](https://travis-ci.org/andy9775/dataloader.svg?branch=master)](https://travis-ci.org/andy9775/dataloader)
+[![CircleCI](https://circleci.com/gh/andy9775/dataloader.svg?style=svg)](https://circleci.com/gh/andy9775/dataloader)
 [![Coverage Status](https://coveralls.io/repos/github/andy9775/dataloader/badge.svg?branch=master)](https://coveralls.io/github/andy9775/dataloader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/andy9775/dataloader)](https://goreportcard.com/report/github.com/andy9775/dataloader)
 
