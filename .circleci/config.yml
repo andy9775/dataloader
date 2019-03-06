@@ -12,4 +12,4 @@ jobs:
       - run: go get -u github.com/golang/dep/...
       - run: dep ensure
 
-      - run: goveralls -v -race -service=travis-ci -repotoken=$COVERALLS_TOKEN
+      - run: goveralls -v -race -service=circle-ci -repotoken=$COVERALLS_TOKEN
