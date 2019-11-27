@@ -82,7 +82,7 @@ func (*openTracer) Batch(ctx context.Context) (context.Context, BatchFinishFunc)
 	span, spanCtx := opentracing.StartSpanFromContext(ctx, "Dataloader: batch")
 
 	return spanCtx, func(r ResultMap) {
-		span.SetTag("keys", fmt.Sprintf("[%s]", strings.Join(r.Keys(), ", ")))
+		span.SetTag("keys", fmt.Sprintf("[%s]", strings.Join(r.StringKeys(), ", ")))
 		span.Finish()
 	}
 }

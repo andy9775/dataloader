@@ -32,45 +32,52 @@ func getBatchFunction(cb func(), result dataloader.Result) dataloader.BatchFunct
 	return func(ctx context.Context, keys dataloader.Keys) *dataloader.ResultMap {
 		cb()
 		m := dataloader.NewResultMap(1)
-		m.Set(keys.Keys()[0].(PrimaryKey).String(), result)
+		m.Set(keys.Keys()[0].(PrimaryKey), result)
 		return &m
 	}
 }
 
 // ========================= mock cache =========================
+type cacheEntry struct {
+	Key   dataloader.Key
+	Value dataloader.Result
+}
+
 type mockCache struct {
-	r map[string]dataloader.Result
+	r map[string]cacheEntry
 }
 
 func newMockCache(cap int) dataloader.Cache {
-	return &mockCache{r: make(map[string]dataloader.Result, cap)}
+	return &mockCache{r: make(map[string]cacheEntry, cap)}
 }
 
 func (c *mockCache) SetResult(ctx context.Context, key dataloader.Key, result dataloader.Result) {
-	c.r[key.String()] = result
+	c.r[key.String()] = cacheEntry{key, result}
 }
 
 func (c *mockCache) SetResultMap(ctx context.Context, resultMap dataloader.ResultMap) {
-	for _, k := range resultMap.Keys() {
-		c.r[k] = resultMap.GetValueForString(k)
+	for k, v := range resultMap {
+		c.r[k.String()] = cacheEntry{k, v}
 	}
 }
 
 func (c *mockCache) GetResult(ctx context.Context, key dataloader.Key) (dataloader.Result, bool) {
 	r, ok := c.r[key.String()]
-	return r, ok
+	return r.Value, ok
 }
 
 func (c *mockCache) GetResultMap(ctx context.Context, keys ...dataloader.Key) (dataloader.ResultMap, bool) {
+	var nok bool
 	result := dataloader.NewResultMap(len(keys))
 	for _, k := range keys {
 		r, ok := c.r[k.String()]
 		if !ok {
-			return dataloader.NewResultMap(len(keys)), false
+			nok = true
+			continue
 		}
-		result.Set(k.String(), r)
+		result.Set(r.Key, r.Value)
 	}
-	return result, true
+	return result, !nok
 }
 
 func (c *mockCache) Delete(ctx context.Context, key dataloader.Key) bool {
@@ -83,7 +90,7 @@ func (c *mockCache) Delete(ctx context.Context, key dataloader.Key) bool {
 }
 
 func (c *mockCache) ClearAll(ctx context.Context) bool {
-	c.r = make(map[string]dataloader.Result, len(c.r))
+	c.r = make(map[string]cacheEntry, len(c.r))
 	return true
 }
 
