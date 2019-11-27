@@ -61,7 +61,7 @@ func (k Keys) Length() int {
 }
 
 func (k *Keys) ClearAll() {
-	*k = []Key{}
+	*k = make([]Key, 0, len(*k))
 }
 
 func (k *Keys) Keys() []interface{} {
