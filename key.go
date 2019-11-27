@@ -13,7 +13,9 @@ type Key interface {
 }
 
 // Keys wraps an array of keys and contains accessor methods
-type Keys []Key
+type Keys struct {
+	keys []Key
+}
 
 type StringKey string
 
@@ -27,59 +29,65 @@ func (k StringKey) Raw() interface{} {
 
 // NewKeys returns a new instance of the Keys array with the provided capacity.
 func NewKeys(capacity int) Keys {
-	return make([]Key, 0, capacity)
+	return Keys{make([]Key, 0, capacity)}
 }
 
 // NewKeysWith is a helper method for returning a new keys array which includes the
 // the provided keys
 func NewKeysWith(key ...Key) Keys {
-	return append([]Key{}, key...)
+	return Keys{append([]Key{}, key...)}
 }
 
 // ================================== public methods ==================================
 
 func (k *Keys) Append(keys ...Key) {
+	ks := make([]Key, 0)
 	for _, key := range keys {
 		if key == nil && key.Raw() == nil { // don't track nil keys
 			continue
 		}
-		for _, kk := range *k { // skip duplicates
+		for _, kk := range k.keys { // skip duplicates
 			if kk == key {
 				return
 			}
 		}
-		*k = append(*k, key)
+		ks = append(ks, key)
 	}
+	k.keys = append(k.keys, ks...)
 }
 
 func (k Keys) Capacity() int {
-	return cap(k)
+	return cap(k.keys)
 }
 
 func (k Keys) Length() int {
-	return len(k)
+	return len(k.keys)
 }
 
-func (k *Keys) ClearAll() {
-	*k = make([]Key, 0, len(*k))
+func (k Keys) ClearAll() {
+	k.keys = make([]Key, 0, len(k.keys))
 }
 
-func (k *Keys) Keys() []interface{} {
+func (k Keys) Keys() []Key {
+	return k.keys
+}
+
+func (k Keys) RawKeys() []interface{} {
 	result := make([]interface{}, 0, k.Length())
-	for _, val := range *k {
-		result = append(result, val.Raw())
+	for _, key := range k.keys {
+		result = append(result, key.Raw())
 	}
 	return result
 }
 
-func (k *Keys) StringKeys() []string {
+func (k Keys) StringKeys() []string {
 	result := make([]string, 0, k.Length())
-	for _, val := range *k {
-		result = append(result, val.String())
+	for _, key := range k.keys {
+		result = append(result, key.String())
 	}
 	return result
 }
 
-func (k *Keys) IsEmpty() bool {
-	return len(*k) == 0
+func (k Keys) IsEmpty() bool {
+	return len(k.keys) == 0
 }

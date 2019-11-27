@@ -36,8 +36,8 @@ func getBatchFunction(cb func(dataloader.Keys), result string) dataloader.BatchF
 	return func(ctx context.Context, keys dataloader.Keys) *dataloader.ResultMap {
 		cb(keys)
 		m := dataloader.NewResultMap(1)
-		for _, k := range keys.Keys() {
-			key := k.(PrimaryKey).String()
+		for _, k := range keys.RawKeys() {
+			key := k.(PrimaryKey)
 			m.Set(
 				key,
 				dataloader.Result{
@@ -123,7 +123,7 @@ func TestLoadTimeoutTriggered(t *testing.T) {
 	cb := func(keys dataloader.Keys) {
 		blockWG.Wait()
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		close(closeChan)
 		wg.Done()
 	}
@@ -206,7 +206,7 @@ func TestLoadManyTimeoutTriggered(t *testing.T) {
 	cb := func(keys dataloader.Keys) {
 		blockWG.Wait()
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		close(closeChan)
 		wg.Done()
 	}
@@ -300,7 +300,7 @@ func TestLoadTriggered(t *testing.T) {
 	cb := func(keys dataloader.Keys) {
 		blockWG.Wait()
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		close(closeChan)
 		wg.Done()
 	}
@@ -381,7 +381,7 @@ func TestLoadManyTriggered(t *testing.T) {
 	cb := func(keys dataloader.Keys) {
 		blockWG.Wait()
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		close(closeChan)
 		wg.Done()
 	}
@@ -458,7 +458,7 @@ func TestLoadBlocked(t *testing.T) {
 	expectedResult := "batch_on_timeout_load_many"
 	cb := func(keys dataloader.Keys) {
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		close(closeChan)
 	}
 
@@ -521,7 +521,7 @@ func TestLoadManyBlocked(t *testing.T) {
 	expectedResult := "batch_on_timeout_load_many"
 	cb := func(keys dataloader.Keys) {
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		close(closeChan)
 	}
 
@@ -666,9 +666,9 @@ func TestKeyHandling(t *testing.T) {
 	batch := func(ctx context.Context, keys dataloader.Keys) *dataloader.ResultMap {
 		m := dataloader.NewResultMap(2)
 		for i := 0; i < keys.Length(); i++ {
-			key := keys.Keys()[i].(PrimaryKey)
+			key := keys.RawKeys()[i].(PrimaryKey)
 			if expectedResult[key] != "__skip__" {
-				m.Set(key.String(), dataloader.Result{Result: expectedResult[key], Err: nil})
+				m.Set(key, dataloader.Result{Result: expectedResult[key], Err: nil})
 			}
 		}
 		return &m

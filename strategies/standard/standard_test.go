@@ -37,7 +37,7 @@ func getBatchFunction(cb func(dataloader.Keys), result string) dataloader.BatchF
 		cb(keys)
 		m := dataloader.NewResultMap(1)
 		for _, k := range keys.Keys() {
-			key := k.(PrimaryKey).String()
+			key := k.(PrimaryKey)
 			m.Set(
 				key,
 				dataloader.Result{
@@ -123,7 +123,7 @@ func TestLoadNoTimeout(t *testing.T) {
 	cb := func(keys dataloader.Keys) {
 		blockWG.Wait()
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		close(closeChan)
 		wg.Done()
 	}
@@ -204,7 +204,7 @@ func TestLoadManyNoTimeout(t *testing.T) {
 	cb := func(keys dataloader.Keys) {
 		blockWG.Wait()
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		close(closeChan)
 		wg.Done()
 	}
@@ -291,7 +291,7 @@ func TestLoadTimeout(t *testing.T) {
 	cb := func(keys dataloader.Keys) {
 		blockWG.Wait()
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		if callCount == 2 {
 			close(closeChan)
 		}
@@ -389,7 +389,7 @@ func TestLoadManyTimeout(t *testing.T) {
 	cb := func(keys dataloader.Keys) {
 		blockWG.Wait()
 		callCount += 1
-		k = keys.Keys()
+		k = keys.RawKeys()
 		if callCount == 2 {
 			close(closeChan)
 		}
@@ -556,7 +556,7 @@ func TestKeyHandling(t *testing.T) {
 		for i := 0; i < keys.Length(); i++ {
 			key := keys.Keys()[i].(PrimaryKey)
 			if expectedResult[key] != "__skip__" {
-				m.Set(key.String(), dataloader.Result{Result: expectedResult[key], Err: nil})
+				m.Set(key, dataloader.Result{Result: expectedResult[key], Err: nil})
 			}
 		}
 		return &m
