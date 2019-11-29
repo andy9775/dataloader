@@ -43,7 +43,7 @@ func NewKeysWith(key ...Key) Keys {
 func (k *Keys) Append(keys ...Key) {
 	ks := make([]Key, 0)
 	for _, key := range keys {
-		if key == nil && key.Raw() == nil { // don't track nil keys
+		if key == nil || key.Raw() == nil { // don't track nil keys
 			continue
 		}
 		for _, kk := range k.keys { // skip duplicates
