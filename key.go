@@ -73,17 +73,17 @@ func (k Keys) Keys() []Key {
 }
 
 func (k Keys) RawKeys() []interface{} {
-	result := make([]interface{}, 0, k.Length())
-	for _, key := range k.keys {
-		result = append(result, key.Raw())
+	result := make([]interface{}, k.Length())
+	for i := 0; i < len(k.keys); i++ {
+		result[i] = k.keys[i].Raw()
 	}
 	return result
 }
 
 func (k Keys) StringKeys() []string {
-	result := make([]string, 0, k.Length())
-	for _, key := range k.keys {
-		result = append(result, key.String())
+	result := make([]string, k.Length())
+	for i := 0; i < len(k.keys); i++ {
+		result[i] = k.keys[i].String()
 	}
 	return result
 }
