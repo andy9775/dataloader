@@ -41,19 +41,17 @@ func NewKeysWith(key ...Key) Keys {
 // ================================== public methods ==================================
 
 func (k *Keys) Append(keys ...Key) {
-	ks := make([]Key, 0)
-	for _, key := range keys {
-		if key == nil || key.Raw() == nil { // don't track nil keys
-			continue
-		}
-		for _, kk := range k.keys { // skip duplicates
-			if kk == key {
-				return
+	appendIfMissing := func(keys []Key, k Key) []Key {
+		for _, key := range keys {
+			if key.String() == k.String() {
+				return keys
 			}
 		}
-		ks = append(ks, key)
+		return append(keys, k)
 	}
-	k.keys = append(k.keys, ks...)
+	for _, key := range keys {
+		k.keys = appendIfMissing(k.keys, key)
+	}
 }
 
 func (k Keys) Capacity() int {
