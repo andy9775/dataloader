@@ -153,21 +153,33 @@ func (d *dataloader) Load(ogCtx context.Context, key Key) Thunk {
 func (d *dataloader) LoadMany(ogCtx context.Context, keyArr ...Key) ThunkMany {
 	ctx, finish := d.tracer.LoadMany(ogCtx, keyArr)
 
-	if r, ok := d.cache.GetResultMap(ctx, keyArr...); ok {
-		d.logger.Logf("cache hit for: %d", keyArr)
-		d.strategy.LoadNoOp(ctx)
-		return func() ResultMap {
-			finish(r)
-
-			return r
+	var cached, missed = ResultMap{}, []Key{}
+	for _, key := range keyArr {
+		if r, ok := d.cache.GetResult(ctx, key); ok {
+			d.logger.Logf("cache hit for: %d", key)
+			d.strategy.LoadNoOp(ctx)
+			cached[key.String()] = r
+		} else {
+			missed = append(missed, key)
 		}
 	}
 
-	thunkMany := d.strategy.LoadMany(ctx, keyArr...)
+	if len(missed) == 0 {
+		return func() ResultMap {
+			finish(cached)
+			return cached
+		}
+	}
+
+	thunkMany := d.strategy.LoadMany(ctx, missed...)
 	return func() ResultMap {
+		cached := cached
 		result := thunkMany()
 		d.cache.SetResultMap(ctx, result)
 
+		for k, v := range cached {
+			result[k] = v
+		}
 		finish(result)
 
 		return result

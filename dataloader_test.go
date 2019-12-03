@@ -32,7 +32,7 @@ func getBatchFunction(cb func(), result dataloader.Result) dataloader.BatchFunct
 	return func(ctx context.Context, keys dataloader.Keys) *dataloader.ResultMap {
 		cb()
 		m := dataloader.NewResultMap(1)
-		m.Set(keys.Keys()[0].(PrimaryKey).String(), result)
+		m.Set(keys.Keys()[0].(PrimaryKey), result)
 		return &m
 	}
 }
@@ -51,8 +51,8 @@ func (c *mockCache) SetResult(ctx context.Context, key dataloader.Key, result da
 }
 
 func (c *mockCache) SetResultMap(ctx context.Context, resultMap dataloader.ResultMap) {
-	for _, k := range resultMap.Keys() {
-		c.r[k] = resultMap.GetValueForString(k)
+	for k, v := range resultMap {
+		c.r[k] = v
 	}
 }
 
@@ -62,21 +62,25 @@ func (c *mockCache) GetResult(ctx context.Context, key dataloader.Key) (dataload
 }
 
 func (c *mockCache) GetResultMap(ctx context.Context, keys ...dataloader.Key) (dataloader.ResultMap, bool) {
+	var nok bool
 	result := dataloader.NewResultMap(len(keys))
-	for _, k := range keys {
-		r, ok := c.r[k.String()]
+	for _, key := range keys {
+		var k = key.String()
+		r, ok := c.r[k]
 		if !ok {
-			return dataloader.NewResultMap(len(keys)), false
+			nok = true
+			continue
 		}
-		result.Set(k.String(), r)
+		result[k] = r
 	}
-	return result, true
+	return result, !nok
 }
 
 func (c *mockCache) Delete(ctx context.Context, key dataloader.Key) bool {
-	_, ok := c.r[key.String()]
+	var k = key.String()
+	_, ok := c.r[k]
 	if ok {
-		delete(c.r, key.String())
+		delete(c.r, k)
 		return true
 	}
 	return false

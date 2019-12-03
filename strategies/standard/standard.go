@@ -2,6 +2,7 @@ package standard
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -277,9 +278,11 @@ func buildResultMap(keyArr []dataloader.Key, r dataloader.ResultMap) dataloader.
 
 	for _, k := range keyArr {
 		if val, ok := r.GetValue(k); ok {
-			results.Set(k.String(), val)
+			results.Set(k, val)
 		}
 	}
+
+	fmt.Printf("r: %+v\nresults: %+v\n", r, results)
 
 	return results
 }

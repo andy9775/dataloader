@@ -35,7 +35,7 @@ func getBatchFunction(cb func(), result dataloader.Result) dataloader.BatchFunct
 	return func(ctx context.Context, keys dataloader.Keys) *dataloader.ResultMap {
 		cb()
 		m := dataloader.NewResultMap(1)
-		m.Set(keys.Keys()[0].(PrimaryKey).String(), result)
+		m.Set(keys.Keys()[0].(PrimaryKey), result)
 		return &m
 	}
 }
@@ -302,7 +302,7 @@ func TestKeyHandling(t *testing.T) {
 		for i := 0; i < keys.Length(); i++ {
 			key := keys.Keys()[i].(PrimaryKey)
 			if expectedResult[key] != "__skip__" {
-				m.Set(key.String(), dataloader.Result{Result: expectedResult[key], Err: nil})
+				m.Set(key, dataloader.Result{Result: expectedResult[key], Err: nil})
 			}
 		}
 		return &m

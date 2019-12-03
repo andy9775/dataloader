@@ -14,7 +14,7 @@ func TestEnsureOKForResult(t *testing.T) {
 	rmap := dataloader.NewResultMap(2)
 	key := PrimaryKey(1)
 	value := dataloader.Result{Result: 1, Err: nil}
-	rmap.Set(key.String(), value)
+	rmap.Set(key, value)
 
 	// invoke/assert
 	result, ok := rmap.GetValue(key)
@@ -27,7 +27,7 @@ func TestEnsureNotOKForResult(t *testing.T) {
 	key := PrimaryKey(1)
 	key2 := PrimaryKey(2)
 	value := dataloader.Result{Result: 1, Err: nil}
-	rmap.Set(key.String(), value)
+	rmap.Set(key, value)
 
 	// invoke/assert
 	result, ok := rmap.GetValue(key2)
