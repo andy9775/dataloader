@@ -164,6 +164,13 @@ func (d *dataloader) LoadMany(ogCtx context.Context, keyArr ...Key) ThunkMany {
 		}
 	}
 
+	if len(missed) == 0 {
+		finish(cached)
+		return func() ResultMap {
+			return cached
+		}
+	}
+
 	thunkMany := d.strategy.LoadMany(ctx, missed...)
 	return func() ResultMap {
 		cached := cached
