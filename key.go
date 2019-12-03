@@ -12,11 +12,6 @@ type Key interface {
 	Raw() interface{}
 }
 
-// Keys wraps an array of keys and contains accessor methods
-type Keys struct {
-	keys []Key
-}
-
 type StringKey string
 
 func (k StringKey) String() string {
@@ -27,65 +22,87 @@ func (k StringKey) Raw() interface{} {
 	return k
 }
 
+// Keys wraps an array of keys and contains accessor methods
+type Keys interface {
+	Append(...Key)
+	Capacity() int
+	Length() int
+	ClearAll()
+	// Keys returns a an array of unique results after calling Raw on each key
+	Keys() []interface{}
+	StringKeys() []string
+	IsEmpty() bool
+}
+
+type keys struct {
+	keys []Key
+}
+
 // NewKeys returns a new instance of the Keys array with the provided capacity.
 func NewKeys(capacity int) Keys {
-	return Keys{make([]Key, 0, capacity)}
+	return &keys{
+		keys: make([]Key, 0, capacity),
+	}
 }
 
 // NewKeysWith is a helper method for returning a new keys array which includes the
 // the provided keys
 func NewKeysWith(key ...Key) Keys {
-	return Keys{append([]Key{}, key...)}
+	return &keys{
+		keys: key,
+	}
 }
 
 // ================================== public methods ==================================
 
-func (k *Keys) Append(keys ...Key) {
-	appendIfMissing := func(keys []Key, k Key) []Key {
-		for _, key := range keys {
-			if key.String() == k.String() {
-				return keys
-			}
-		}
-		return append(keys, k)
-	}
+func (k *keys) Append(keys ...Key) {
 	for _, key := range keys {
-		k.keys = appendIfMissing(k.keys, key)
+		if key != nil && key.Raw() != nil { // don't track nil keys
+			k.keys = append(k.keys, key)
+		}
 	}
 }
 
-func (k Keys) Capacity() int {
+func (k *keys) Capacity() int {
 	return cap(k.keys)
 }
 
-func (k Keys) Length() int {
+func (k *keys) Length() int {
 	return len(k.keys)
 }
 
-func (k Keys) ClearAll() {
+func (k *keys) ClearAll() {
 	k.keys = make([]Key, 0, len(k.keys))
 }
 
-func (k Keys) Keys() []Key {
-	return k.keys
-}
+func (k *keys) Keys() []interface{} {
+	result := make([]interface{}, 0, k.Length())
+	temp := make(map[Key]bool, k.Length())
 
-func (k Keys) RawKeys() []interface{} {
-	result := make([]interface{}, k.Length())
-	for i := 0; i < len(k.keys); i++ {
-		result[i] = k.keys[i].Raw()
+	for _, val := range k.keys {
+		if _, ok := temp[val]; !ok {
+			temp[val] = true
+			result = append(result, val.Raw())
+		}
 	}
+
 	return result
 }
 
-func (k Keys) StringKeys() []string {
-	result := make([]string, k.Length())
-	for i := 0; i < len(k.keys); i++ {
-		result[i] = k.keys[i].String()
+func (k *keys) StringKeys() []string {
+	result := make([]string, 0, k.Length())
+	temp := make(map[Key]bool, k.Length())
+
+	for _, val := range k.keys {
+		if _, ok := temp[val]; !ok {
+			temp[val] = true
+			result = append(result, val.String())
+		}
 	}
+
 	return result
 }
 
-func (k Keys) IsEmpty() bool {
+func (k *keys) IsEmpty() bool {
 	return len(k.keys) == 0
 }
